@@ -1,0 +1,168 @@
+<#-- 定时任务表单：fragment=true 时仅输出表单（弹窗用） -->
+<#macro scheduleForm>
+<div class="batch-schedule-form-fragment">
+    <h2 class="text-lg font-semibold text-slate-800 mb-4"><#if schedule.id??>编辑任务<#else>新建任务</#if></h2>
+    <form method="post" action="/batch/schedule/save" id="batchScheduleFormModal" class="space-y-4">
+        <#if schedule.id??><input type="hidden" name="id" value="${schedule.id!}"></#if>
+        <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">任务名称</label>
+            <input type="text" name="name" value="${(schedule.name!)?html}" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="例如：每日巡检">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">执行命令</label>
+            <textarea name="command" rows="3" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-800 focus:ring-2 focus:ring-blue-500 font-mono text-sm" placeholder="df -h">${(schedule.command!)?html}</textarea>
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-700 mb-2">选择执行对象</label>
+            <#assign scheduleByGroup = (schedule.groupIds!)?has_content>
+            <div class="schedule-tab-bar flex rounded-lg border border-slate-200 overflow-hidden bg-slate-100 p-0.5 mb-3" role="tablist">
+                <button type="button" class="schedule-target-tab flex-1 py-2 text-sm font-medium rounded-md transition px-3 ${scheduleByGroup?then('text-slate-600 hover:text-slate-800','bg-white text-slate-800 shadow-sm')} cursor-pointer" data-mode="host">按主机</button>
+                <button type="button" class="schedule-target-tab flex-1 py-2 text-sm font-medium rounded-md transition px-3 ${scheduleByGroup?then('bg-white text-slate-800 shadow-sm','text-slate-600 hover:text-slate-800')} cursor-pointer" data-mode="group">按分组</button>
+            </div>
+            <div class="schedule-target-panel ${scheduleByGroup?then('hidden','')}" data-mode="host">
+                <input type="search" class="schedule-host-search w-full mb-2 px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="搜索主机名称或地址">
+                <div class="max-h-48 overflow-y-auto border border-slate-200 rounded-lg p-3 space-y-2 bg-slate-50">
+                    <#list hosts! as h>
+                    <label class="schedule-host-item flex items-center gap-2 cursor-pointer hover:bg-slate-100 p-2 rounded transition">
+                        <input type="checkbox" name="hostId" value="${h.id!}" class="rounded border-slate-300 text-blue-600 focus:ring-blue-500 schedule-host-cb"
+                            <#if !scheduleByGroup && (schedule.hostIds!)?has_content && ((schedule.hostIds!)?replace(' ','')?split(','))?seq_contains(h.id?string)>checked</#if>>
+                        <span class="text-slate-800 text-sm">${(h.name!)?html} (${(h.hostname!)?html})</span>
+                    </label>
+                    </#list>
+                </div>
+            </div>
+            <div class="schedule-target-panel ${scheduleByGroup?then('','hidden')}" data-mode="group">
+                <input type="search" class="schedule-group-search w-full mb-2 px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="搜索分组名称">
+                <div class="max-h-48 overflow-y-auto border border-slate-200 rounded-lg p-3 space-y-2 bg-slate-50">
+                    <#list groups! as g>
+                    <label class="schedule-group-item flex items-center gap-2 cursor-pointer hover:bg-slate-100 p-2 rounded transition">
+                        <input type="checkbox" name="groupId" value="${g.id!}" class="rounded border-slate-300 text-blue-600 focus:ring-blue-500 schedule-group-cb"
+                            <#if scheduleByGroup && (schedule.groupIds!)?has_content && ((schedule.groupIds!)?replace(' ','')?split(','))?seq_contains(g.id?string)>checked</#if>>
+                        <span class="text-slate-800 text-sm">${(g.name!)?html}</span>
+                    </label>
+                    </#list>
+                    <#if !groups?? || (groups?size == 0)><span class="text-slate-500 text-sm">暂无分组</span></#if>
+                </div>
+            </div>
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">定时（选填） <span class="text-slate-500 font-normal">Cron 6 位：秒 分 时 日 月 周，不填则仅手动执行</span></label>
+            <input type="text" name="cronExpression" value="${(schedule.cronExpression!)?html}" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-800 font-mono text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="例：0 0 2 * * ? 每天 2:00">
+        </div>
+        <div class="flex items-center gap-2">
+            <input type="checkbox" name="enabled" value="1" id="scheduleEnabled" <#if !schedule.enabled?? || schedule.enabled == 1>checked</#if> class="rounded border-slate-300 text-blue-600 focus:ring-blue-500">
+            <label for="scheduleEnabled" class="text-sm text-slate-700">启用（有定时时按 Cron 执行；无定时时可随时点「立即执行」）</label>
+        </div>
+        <div class="flex gap-3 pt-2">
+            <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg border-0 cursor-pointer">保存</button>
+            <a href="/batch" class="js-modal-close px-4 py-2 text-slate-600 hover:text-slate-800 transition cursor-pointer">取消</a>
+        </div>
+    </form>
+    <script>
+    (function() {
+        var groupHostIds = {};
+        <#list groups! as g>
+        <#if g.id??>
+        groupHostIds["${g.id}"] = [<#list (groupIdToHostIds[g.id?c])! as hid>${hid}<#if hid_has_next>,</#if></#list>];
+        </#if>
+        </#list>
+        var form = document.getElementById('batchScheduleFormModal');
+        if (form) {
+            var mode = '<#if scheduleByGroup>group<#else>host</#if>';
+            var tabs = form.querySelectorAll('.schedule-target-tab');
+            var panels = form.querySelectorAll('.schedule-target-panel');
+            function switchScheduleTarget(m) {
+                mode = m;
+                tabs.forEach(function(t) {
+                    if (t.getAttribute('data-mode') === m) {
+                        t.classList.add('bg-white', 'text-slate-800', 'shadow-sm');
+                        t.classList.remove('text-slate-600');
+                    } else {
+                        t.classList.remove('bg-white', 'text-slate-800', 'shadow-sm');
+                        t.classList.add('text-slate-600');
+                    }
+                });
+                panels.forEach(function(p) {
+                    p.classList.toggle('hidden', p.getAttribute('data-mode') !== m);
+                });
+                if (m === 'host') {
+                    form.querySelectorAll('input[name="groupId"]').forEach(function(cb) { cb.checked = false; });
+                } else {
+                    form.querySelectorAll('input[name="hostId"]').forEach(function(cb) { cb.checked = false; });
+                }
+            }
+            var tabBar = form.querySelector('.schedule-tab-bar');
+            if (tabBar) {
+                tabBar.addEventListener('click', function(e) {
+                    var t = e.target.closest('.schedule-target-tab');
+                    if (t && t.getAttribute('data-mode')) switchScheduleTarget(t.getAttribute('data-mode'));
+                });
+            }
+            function filterSchedulePanel(panel, searchEl, itemClass) {
+                if (!panel || !searchEl) return;
+                var scroll = panel.querySelector('.max-h-48');
+                if (!scroll) return;
+                var q = (searchEl.value || '').trim().toLowerCase();
+                scroll.querySelectorAll(itemClass).forEach(function(label) {
+                    var text = (label.textContent || '').toLowerCase();
+                    label.style.display = (q === '' || text.indexOf(q) >= 0) ? '' : 'none';
+                });
+            }
+            form.querySelectorAll('.schedule-host-search').forEach(function(el) {
+                el.addEventListener('input', function() {
+                    var panel = form.querySelector('.schedule-target-panel[data-mode="host"]');
+                    filterSchedulePanel(panel, el, '.schedule-host-item');
+                });
+            });
+            form.querySelectorAll('.schedule-group-search').forEach(function(el) {
+                el.addEventListener('input', function() {
+                    var panel = form.querySelector('.schedule-target-panel[data-mode="group"]');
+                    filterSchedulePanel(panel, el, '.schedule-group-item');
+                });
+            });
+            form.addEventListener('submit', function(e) {
+                var ids = [];
+                var groupIdList = [];
+                if (mode === 'host') {
+                    ids = Array.from(form.querySelectorAll('input[name="hostId"]:checked')).map(function(c) { return c.value; });
+                } else {
+                    var set = new Set();
+                    Array.from(form.querySelectorAll('input[name="groupId"]:checked')).forEach(function(c) {
+                        groupIdList.push(c.value);
+                        (groupHostIds[c.value] || []).forEach(function(id) { set.add(String(id)); });
+                    });
+                    ids = Array.from(set);
+                }
+                form.querySelectorAll('input[name="hostId"]').forEach(function(el) { el.disabled = true; });
+                ids.forEach(function(id) {
+                    var input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = 'hostId';
+                    input.value = id;
+                    form.appendChild(input);
+                });
+                if (groupIdList.length > 0) {
+                    var gInput = document.createElement('input');
+                    gInput.type = 'hidden';
+                    gInput.name = 'groupIds';
+                    gInput.value = groupIdList.join(',');
+                    form.appendChild(gInput);
+                }
+            });
+        }
+    })();
+    </script>
+</div>
+</#macro>
+<#if fragment!false>
+<@scheduleForm/>
+<#else>
+<#import "../layout.html" as layout>
+<@layout.main title=(schedule.id??)?then("编辑任务","新建任务") nav="batch">
+    <div class="max-w-xl mx-auto">
+        <div class="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
+            <@scheduleForm/>
+        </div>
+    </div>
+</@layout.main>
+</#if>

@@ -1,0 +1,192 @@
+<#import "../layout.html" as layout>
+<@layout.main title="告警规则" nav="alert">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <form method="get" action="alert" class="flex gap-2 flex-1 sm:max-w-xs">
+            <input type="search" name="q" value="${(q!)?html}" placeholder="搜索规则名称" class="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition border-0 cursor-pointer">搜索</button>
+        </form>
+        <div class="flex gap-2 shrink-0">
+            <a href="/alert/events" class="px-4 py-2 bg-white border border-slate-300 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-50 transition cursor-pointer inline-flex items-center gap-1">告警记录</a>
+            <button type="button" class="js-open-rule-modal px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg shadow shadow-blue-500/30 transition border-0 cursor-pointer" data-rule-id="">新增规则</button>
+        </div>
+    </div>
+    <#if message??>
+    <p class="mb-4 text-sm text-emerald-600">${message}</p>
+    </#if>
+    <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+        <table class="w-full text-left text-sm">
+            <thead>
+                <tr class="border-b border-slate-200 bg-slate-50">
+                    <th class="px-4 py-3 text-xs font-semibold text-slate-600 uppercase">规则名称</th>
+                    <th class="px-4 py-3 text-xs font-semibold text-slate-600 uppercase">指标</th>
+                    <th class="px-4 py-3 text-xs font-semibold text-slate-600 uppercase">条件</th>
+                    <th class="px-4 py-3 text-xs font-semibold text-slate-600 uppercase">阈值</th>
+                    <th class="px-4 py-3 text-xs font-semibold text-slate-600 uppercase">持续(秒)</th>
+                    <th class="px-4 py-3 text-xs font-semibold text-slate-600 uppercase">严重程度</th>
+                    <th class="px-4 py-3 text-xs font-semibold text-slate-600 uppercase">状态</th>
+                    <th class="px-4 py-3 text-xs font-semibold text-slate-600 uppercase text-right">操作</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200">
+                <#list rules as r>
+                <#assign metricLabel = {'cpu_usage':'CPU使用率','mem_usage':'内存使用率','disk_usage':'磁盘使用率','icmp_rtt_ms':'ICMP时延(ms)'}[r.metricKey!'']!r.metricKey!>
+                <tr class="hover:bg-slate-50">
+                    <td class="px-4 py-3 font-medium text-slate-800">${(r.name!)?html}</td>
+                    <td class="px-4 py-3">${metricLabel}</td>
+                    <td class="px-4 py-3"><span class="font-mono text-xs">${(r.operator!'gte')?html}</span></td>
+                    <td class="px-4 py-3">${(r.threshold!0)?string('0.##')}<#if r.metricKey?? && (r.metricKey == 'cpu_usage' || r.metricKey == 'mem_usage' || r.metricKey == 'disk_usage')>%</#if><#if r.metricKey?? && r.metricKey == 'icmp_rtt_ms'>（9999=不可达）</#if></td>
+                    <td class="px-4 py-3">${r.durationSeconds!0}</td>
+                    <td class="px-4 py-3">
+                        <#assign sev = r.severity!1>
+                        <#if sev == 3>
+                        <span class="px-2 py-0.5 rounded text-xs font-medium bg-rose-100 text-rose-700">严重</span>
+                        <#elseif sev == 2>
+                        <span class="px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700">重要</span>
+                        <#else>
+                        <span class="px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-600">一般</span>
+                        </#if>
+                    </td>
+                    <td class="px-4 py-3">
+                        <#if r.enabled?? && r.enabled == 1>
+                        <span class="status-label px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-700">启用</span>
+                        <#else>
+                        <span class="status-label px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-500">禁用</span>
+                        </#if>
+                    </td>
+                    <td class="px-4 py-3 text-right whitespace-nowrap">
+                        <div class="list-action-wrap inline-block relative">
+                            <button type="button" class="list-action-btn px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm rounded-lg transition inline-flex items-center gap-1 cursor-pointer border-0">操作 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg></button>
+                            <div class="list-action-menu fixed py-1 min-w-[8rem] rounded-lg bg-white border border-slate-200 shadow-xl z-[200]" style="display: none; position: fixed;">
+                                <button type="button" class="js-open-rule-modal flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 rounded-t-lg border-0 bg-transparent cursor-pointer" data-rule-id="${r.id!}"><svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>编辑</button>
+                                <button type="button" class="js-toggle-rule-status flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 border-0 bg-transparent cursor-pointer" data-rule-id="${r.id!}" data-enabled="${(r.enabled?? && r.enabled == 1)?then('1','0')}"><svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg><#if r.enabled?? && r.enabled == 1>禁用<#else>启用</#if></button>
+                                <form method="post" action="alert/delete" class="block w-full">
+                                    <input type="hidden" name="id" value="${r.id!}">
+                                    <button type="button" class="js-confirm-submit flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-b-lg border-0 bg-transparent cursor-pointer" data-confirm="确定删除该规则？"><svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>删除</button>
+                                </form>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+                </#list>
+            </tbody>
+        </table>
+        <#if !rules?? || rules?size == 0>
+        <p class="px-4 py-8 text-center text-slate-500 text-sm">暂无告警规则，<button type="button" class="js-open-rule-modal text-blue-600 hover:underline border-0 bg-transparent cursor-pointer" data-rule-id="">新增一条</button></p>
+        </#if>
+    </div>
+
+    <div id="ruleModalOverlay" class="fixed inset-0 bg-black/50 z-[300] hidden items-center justify-center" style="display: none;">
+        <div id="ruleModal" class="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto mx-4">
+            <div id="ruleModalBody" class="p-6"></div>
+        </div>
+    </div>
+    <script>
+    (function() {
+        var overlay = document.getElementById('ruleModalOverlay');
+        var modalBody = document.getElementById('ruleModalBody');
+
+        function openRuleModal(ruleId) {
+            var qs = ruleId ? '?id=' + encodeURIComponent(ruleId) : '';
+            overlay.classList.remove('hidden');
+            overlay.style.display = 'flex';
+            modalBody.innerHTML = '<div class="text-center py-8 text-slate-500">加载中…</div>';
+            fetch('/alert/form' + qs, { credentials: 'same-origin' })
+                .then(function(r) { return r.text(); })
+                .then(function(html) {
+                    modalBody.innerHTML = html;
+                    var form = document.getElementById('alertRuleFormModal');
+                    var closeBtn = modalBody.querySelector('.js-modal-close');
+                    if (closeBtn) closeBtn.addEventListener('click', function(e) { e.preventDefault(); closeRuleModal(); });
+                    overlay.onclick = function(e) { if (e.target === overlay) closeRuleModal(); };
+                    if (form) {
+                        form.addEventListener('submit', function(e) {
+                            e.preventDefault();
+                            var submitBtn = form.querySelector('button[type="submit"]');
+                            if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = '保存中…'; }
+                            var params = new URLSearchParams();
+                            var i, el;
+                            for (i = 0; i < form.elements.length; i++) {
+                                el = form.elements[i];
+                                if (el.name && !el.disabled) {
+                                    if (el.type === 'checkbox') { if (el.checked) params.append(el.name, el.value); }
+                                    else params.append(el.name, el.value);
+                                }
+                            }
+                            fetch('/alert/save', {
+                                method: 'POST',
+                                credentials: 'same-origin',
+                                headers: { 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/x-www-form-urlencoded' },
+                                body: params.toString()
+                            }).then(function(res) { return res.json().catch(function() { return {}; }); }).then(function(data) {
+                                if (data && data.success) {
+                                    closeRuleModal();
+                                    if (typeof toast === 'function') toast('保存成功', 'success');
+                                    window.location.reload();
+                                } else {
+                                    if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = '保存'; }
+                                    toast(data.message || '保存失败', 'error');
+                                }
+                            }).catch(function() {
+                                if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = '保存'; }
+                                toast('保存失败', 'error');
+                            });
+                        });
+                    }
+                })
+                .catch(function() {
+                    modalBody.innerHTML = '<div class="text-center py-8 text-red-600">加载失败</div>';
+                    if (typeof toast === 'function') toast('加载失败', 'error');
+                });
+        }
+        function closeRuleModal() {
+            overlay.classList.add('hidden');
+            overlay.style.display = 'none';
+        }
+        document.addEventListener('click', function(e) {
+            var btn = e.target.closest('.js-open-rule-modal');
+            if (btn) {
+                e.preventDefault();
+                e.stopPropagation();
+                var id = btn.getAttribute('data-rule-id');
+                openRuleModal(id || null);
+                return;
+            }
+            var toggleBtn = e.target.closest('.js-toggle-rule-status');
+            if (toggleBtn) {
+                e.preventDefault();
+                e.stopPropagation();
+                var id = toggleBtn.getAttribute('data-rule-id');
+                if (toggleBtn.disabled) return;
+                toggleBtn.disabled = true;
+                var params = new URLSearchParams();
+                params.append('id', id);
+                fetch('alert/toggle', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: { 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: params.toString()
+                }).then(function(res) { return res.json().catch(function() { return {}; }); }).then(function(data) {
+                    toggleBtn.disabled = false;
+                    if (data && data.success) {
+                        var nextEnabled = data.enabled === 1;
+                        toggleBtn.setAttribute('data-enabled', nextEnabled ? '1' : '0');
+                        toggleBtn.innerHTML = toggleBtn.innerHTML.replace(/\u542f\u7528|\u7981\u7528/g, nextEnabled ? '\u7981\u7528' : '\u542f\u7528');
+                        var row = toggleBtn.closest('tr');
+                        var statusSpan = row ? row.querySelector('.status-label') : null;
+                        if (statusSpan) {
+                            statusSpan.textContent = nextEnabled ? '\u542f\u7528' : '\u7981\u7528';
+                            statusSpan.className = 'status-label px-2 py-0.5 rounded text-xs font-medium ' + (nextEnabled ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500');
+                        }
+                        if (typeof toast === 'function') toast(nextEnabled ? '已启用' : '已禁用', 'success');
+                    } else {
+                        if (typeof toast === 'function') toast(data.message || '操作失败', 'error');
+                    }
+                }).catch(function() {
+                    toggleBtn.disabled = false;
+                    if (typeof toast === 'function') toast('操作失败', 'error');
+                });
+            }
+        });
+    })();
+    </script>
+</@layout.main>

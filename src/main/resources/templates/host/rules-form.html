@@ -1,0 +1,24 @@
+<#-- 主机监控规则弹窗内容：勾选适用于该主机的告警规则 -->
+<div class="host-rules-form-fragment">
+    <h2 class="text-lg font-semibold text-slate-800 mb-2">监控规则</h2>
+    <p class="text-sm text-slate-500 mb-3">${(hostName!)?html} · 勾选适用于本主机的告警规则</p>
+    <form id="hostRulesFormModal" class="space-y-3">
+        <input type="hidden" name="hostId" value="${hostId!}">
+        <div class="border border-slate-300 rounded-lg p-3 max-h-56 overflow-y-auto bg-slate-50/50 space-y-1.5">
+            <#list alertRules! as rule>
+            <label class="flex items-center gap-2 py-1 cursor-pointer hover:bg-slate-100 rounded px-1 -mx-1">
+                <input type="checkbox" name="ruleIds" value="${rule.id!}" class="rounded border-slate-300 text-blue-600 focus:ring-blue-500" ${(hostAlertRuleIds![])?seq_contains(rule.id!)?then('checked','')}>
+                <span class="text-sm text-slate-800">${(rule.name!)?html}</span>
+                <span class="text-xs text-slate-500">${({'cpu_usage':'CPU','mem_usage':'内存','disk_usage':'磁盘','icmp_rtt_ms':'ICMP时延'}[rule.metricKey!]!rule.metricKey!)} ${(rule.operator!'gte')?html} ${(rule.threshold!0)?string('0.##')}<#if rule.metricKey?? && rule.metricKey != 'icmp_rtt_ms'>%</#if><#if rule.metricKey?? && rule.metricKey == 'icmp_rtt_ms'>（9999=不可达）</#if></span>
+            </label>
+            </#list>
+            <#if !alertRules?? || alertRules?size == 0>
+            <p class="text-xs text-slate-500">暂无告警规则，请先在<a href="/alert" class="text-blue-600 hover:underline">告警规则</a>中新增。</p>
+            </#if>
+        </div>
+        <div class="flex gap-3 pt-1">
+            <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition text-sm">保存</button>
+            <button type="button" class="js-close-rules-modal px-4 py-2 text-slate-600 hover:text-slate-800 transition text-sm">取消</button>
+        </div>
+    </form>
+</div>

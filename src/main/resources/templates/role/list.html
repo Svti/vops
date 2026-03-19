@@ -1,0 +1,61 @@
+<#import "../layout.html" as layout>
+<@layout.main title="角色管理" nav="role">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <form method="get" action="/role" class="flex gap-2 flex-1 sm:max-w-xs">
+            <input type="search" name="q" value="${(q!)?html}" placeholder="搜索角色编码、名称或描述" class="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition border-0 cursor-pointer">搜索</button>
+        </form>
+        <div class="shrink-0">
+            <a href="/role/edit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg shadow shadow-blue-500/30 transition border-0 cursor-pointer inline-block">新增角色</a>
+        </div>
+    </div>
+    <#if message??>
+    <p class="mb-4 text-sm text-emerald-600">${message}</p>
+    </#if>
+    <#if error??>
+    <p class="mb-4 text-sm text-red-600">${error}</p>
+    </#if>
+    <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+        <table class="w-full text-left text-sm">
+            <thead>
+                <tr class="border-b border-slate-200 bg-slate-50">
+                    <th class="px-4 py-3 text-xs font-semibold text-slate-600 uppercase">角色编码</th>
+                    <th class="px-4 py-3 text-xs font-semibold text-slate-600 uppercase">角色名称</th>
+                    <th class="px-4 py-3 text-xs font-semibold text-slate-600 uppercase">描述</th>
+                    <th class="px-4 py-3 text-xs font-semibold text-slate-600 uppercase">主机权限</th>
+                    <th class="px-4 py-3 text-xs font-semibold text-slate-600 uppercase text-right">操作</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200">
+                <#list roles![] as r>
+                <tr class="hover:bg-slate-50">
+                    <td class="px-4 py-3 font-medium text-slate-800 font-mono text-xs">${(r.roleCode!)?html}</td>
+                    <td class="px-4 py-3 text-slate-700">${(r.roleName!)?html}</td>
+                    <td class="px-4 py-3 text-slate-500 text-xs max-w-xs truncate" title="${(r.description!)?html}">${(r.description!)?html}</td>
+                    <td class="px-4 py-3 text-slate-600 text-xs max-w-xs truncate" title="${(rolePermSummary!{})[r.id?c!]!}">${(rolePermSummary!{})[r.id?c!]!}</td>
+                    <td class="px-4 py-3 text-right whitespace-nowrap">
+                        <div class="list-action-wrap inline-block relative">
+                            <button type="button" class="list-action-btn px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm rounded-lg transition inline-flex items-center gap-1 cursor-pointer border-0">操作 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg></button>
+                            <div class="list-action-menu fixed py-1 min-w-[8rem] rounded-lg bg-white border border-slate-200 shadow-xl z-[200]" style="display: none; position: fixed;">
+                                <a href="/role/edit?id=${r.id!}" class="flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 rounded-t-lg border-0 cursor-pointer no-underline"><svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>编辑</a>
+                                <#assign rUserCount = (roleUserCount!{})[r.id?c!]!0>
+                                <#if rUserCount gt 0>
+                                <span class="flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-slate-400 cursor-not-allowed rounded-b-lg" title="该角色下还有 ${rUserCount} 名用户，无法删除"><svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>删除</span>
+                                <#else>
+                                <form method="post" action="/role/delete" class="block w-full">
+                                    <input type="hidden" name="id" value="${r.id!}">
+                                    <button type="button" class="js-confirm-submit flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-b-lg border-0 bg-transparent cursor-pointer" data-confirm="确定删除该角色？"><svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>删除</button>
+                                </form>
+                                </#if>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+                </#list>
+                <#if !roles?? || roles?size == 0>
+                <tr><td colspan="5" class="px-4 py-8 text-center text-slate-500 text-sm">暂无角色，<a href="/role/edit" class="text-blue-600 hover:underline">新增一个</a></td></tr>
+                </#if>
+            </tbody>
+        </table>
+    </div>
+</@layout.main>

@@ -1,0 +1,122 @@
+<#import "../layout.html" as layout>
+<@layout.main title="新建批量任务" nav="batch">
+    <div class="max-w-xl mx-auto">
+        <div class="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
+            <h1 class="text-lg font-semibold text-slate-800 uppercase tracking-wider mb-6">新建批量任务</h1>
+            <form id="batchForm" method="post" action="/batch/run" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">任务名称</label>
+                    <input type="text" name="name" required placeholder="例如：检查磁盘" class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">执行命令</label>
+                    <textarea name="command" rows="3" required placeholder="df -h" class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-blue-500 font-mono text-sm"></textarea>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-2">选择执行对象</label>
+                    <div id="batchTabBar" class="flex rounded-lg border border-slate-200 overflow-hidden bg-slate-100 p-0.5 mb-3" role="tablist">
+                        <button type="button" class="batch-target-tab flex-1 py-2 text-sm font-medium rounded-md transition px-3 bg-white text-slate-800 shadow-sm cursor-pointer" data-mode="host">按主机</button>
+                        <button type="button" class="batch-target-tab flex-1 py-2 text-sm font-medium rounded-md transition px-3 text-slate-600 hover:text-slate-800 cursor-pointer" data-mode="group">按分组</button>
+                    </div>
+                    <div id="batchPanelHost" class="batch-target-panel">
+                        <input type="search" id="batchHostSearch" placeholder="搜索主机名称或地址" class="w-full mb-2 px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        <div class="max-h-48 overflow-y-auto border border-slate-200 rounded-lg p-3 space-y-2 bg-slate-50">
+                            <#list hosts as h>
+                            <label class="batch-host-item flex items-center gap-2 cursor-pointer hover:bg-slate-100 p-2 rounded transition">
+                                <input type="checkbox" name="hostId" value="${h.id!}" class="rounded border-slate-300 bg-white text-blue-600 focus:ring-blue-500">
+                                <span class="text-slate-800 text-sm">${h.name!} (${h.hostname!})</span>
+                            </label>
+                            </#list>
+                        </div>
+                    </div>
+                    <div id="batchPanelGroup" class="batch-target-panel hidden">
+                        <input type="search" id="batchGroupSearch" placeholder="搜索分组名称" class="w-full mb-2 px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        <div class="max-h-48 overflow-y-auto border border-slate-200 rounded-lg p-3 space-y-2 bg-slate-50">
+                            <#list groups! as g>
+                            <label class="batch-group-item flex items-center gap-2 cursor-pointer hover:bg-slate-100 p-2 rounded transition">
+                                <input type="checkbox" name="groupId" value="${g.id!}" class="rounded border-slate-300 bg-white text-blue-600 focus:ring-blue-500">
+                                <span class="text-slate-800 text-sm">${(g.name!)?html}</span>
+                            </label>
+                            </#list>
+                            <#if !groups?? || (groups?size == 0)><span class="text-slate-500 text-sm">暂无分组</span></#if>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex gap-3 pt-2">
+                    <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg shadow shadow-blue-500/30 transition">执行</button>
+                    <a href="/batch" class="px-4 py-2 text-slate-600 hover:text-slate-800 transition">取消</a>
+                </div>
+            </form>
+        </div>
+    </div>
+    <script>
+        (function() {
+            var groupHostIds = {};
+            <#list groups! as g>
+            <#if g.id??>
+            groupHostIds["${g.id}"] = [<#list (groupIdToHostIds[g.id?c])! as hid>${hid}<#if hid_has_next>,</#if></#list>];
+            </#if>
+            </#list>
+            var mode = 'host';
+            var tabs = document.querySelectorAll('.batch-target-tab');
+            var panels = document.querySelectorAll('.batch-target-panel');
+            function switchBatchTarget(m) {
+                mode = m;
+                tabs.forEach(function(t) {
+                    if (t.getAttribute('data-mode') === m) {
+                        t.classList.add('bg-white', 'text-slate-800', 'shadow-sm');
+                        t.classList.remove('text-slate-600');
+                    } else {
+                        t.classList.remove('bg-white', 'text-slate-800', 'shadow-sm');
+                        t.classList.add('text-slate-600');
+                    }
+                });
+                document.getElementById('batchPanelHost').classList.toggle('hidden', m !== 'host');
+                document.getElementById('batchPanelGroup').classList.toggle('hidden', m !== 'group');
+                if (m === 'host') {
+                    document.querySelectorAll('#batchForm input[name="groupId"]').forEach(function(cb) { cb.checked = false; });
+                } else {
+                    document.querySelectorAll('#batchForm input[name="hostId"]').forEach(function(cb) { cb.checked = false; });
+                }
+            }
+            document.getElementById('batchTabBar').addEventListener('click', function(e) {
+                var t = e.target.closest('.batch-target-tab');
+                if (t && t.getAttribute('data-mode')) switchBatchTarget(t.getAttribute('data-mode'));
+            });
+            function filterPanel(panelId, searchId, itemClass) {
+                var panel = document.querySelector(panelId + ' .max-h-48');
+                var search = document.getElementById(searchId);
+                if (!panel || !search) return;
+                var q = (search.value || '').trim().toLowerCase();
+                panel.querySelectorAll(itemClass).forEach(function(label) {
+                    var text = (label.textContent || '').toLowerCase();
+                    label.style.display = (q === '' || text.indexOf(q) >= 0) ? '' : 'none';
+                });
+            }
+            document.getElementById('batchHostSearch') && document.getElementById('batchHostSearch').addEventListener('input', function() { filterPanel('#batchPanelHost', 'batchHostSearch', '.batch-host-item'); });
+            document.getElementById('batchGroupSearch') && document.getElementById('batchGroupSearch').addEventListener('input', function() { filterPanel('#batchPanelGroup', 'batchGroupSearch', '.batch-group-item'); });
+            document.getElementById('batchForm').addEventListener('submit', function(e) {
+                var ids = [];
+                if (mode === 'host') {
+                    ids = Array.from(document.querySelectorAll('input[name="hostId"]:checked')).map(function(c) { return c.value; });
+                } else {
+                    var set = new Set();
+                    Array.from(document.querySelectorAll('input[name="groupId"]:checked')).forEach(function(c) {
+                        (groupHostIds[c.value] || []).forEach(function(id) { set.add(String(id)); });
+                    });
+                    ids = Array.from(set);
+                }
+                if (ids.length === 0) {
+                    e.preventDefault();
+                    toast(mode === 'host' ? '请至少选择一台主机' : '请至少选择一个分组', 'warning');
+                    return false;
+                }
+                var input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'hostIds';
+                input.value = ids.join(',');
+                this.appendChild(input);
+            });
+        })();
+    </script>
+</@layout.main>

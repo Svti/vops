@@ -1,0 +1,625 @@
+<#import "../layout.html" as layout>
+<@layout.main title=(pageTitle!'监控中心') nav="monitor">
+    <div id="monitorLoadingOverlay" class="fixed inset-0 z-[200] flex items-center justify-center bg-slate-100/80 hidden" style="display: none;">
+        <div class="flex flex-col items-center justify-center">
+            <div class="monitor-loading-spinner w-12 h-12 border-4 border-slate-200 border-t-blue-600 rounded-full"></div>
+            <p class="text-slate-600 font-medium mt-4">加载中…</p>
+        </div>
+    </div>
+    <style>
+        @keyframes monitor-spin { to { transform: rotate(360deg); } }
+        .monitor-loading-spinner { animation: monitor-spin 0.8s linear infinite; }
+    </style>
+    <div class="flex flex-col gap-6">
+        <div id="hostInfoBar" class="hidden flex flex-wrap items-center gap-4 p-4 bg-white border border-slate-200 rounded-xl shadow-sm">
+            <div id="hostInfo" class="flex-1 flex flex-wrap items-center gap-6">
+                <div>
+                    <p class="text-xs text-slate-500 uppercase font-bold tracking-wider">主机</p>
+                    <p id="hostName" class="text-lg font-bold text-slate-800"></p>
+                    <p id="hostHostname" class="text-xs text-slate-500 font-mono"></p>
+                </div>
+                <div class="border-l border-slate-200 pl-6">
+                    <p class="text-xs text-slate-500 uppercase font-bold tracking-wider">分组</p>
+                    <p id="hostGroup" class="text-sm text-slate-700">—</p>
+                </div>
+                <div class="border-l border-slate-200 pl-6">
+                    <p class="text-xs text-slate-500 uppercase font-bold tracking-wider">负载</p>
+                    <p id="hostLoad" class="text-sm text-slate-700 font-mono">—</p>
+                </div>
+                <div class="border-l border-slate-200 pl-6">
+                    <p class="text-xs text-slate-500 uppercase font-bold tracking-wider">运行时间</p>
+                    <p id="hostUptime" class="text-sm text-slate-700 font-mono">—</p>
+                </div>
+                <button type="button" id="hostTerminalBtn" class="ml-auto px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium rounded-lg transition border-0 cursor-pointer inline-flex items-center gap-2"><svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>终端</button>
+            </div>
+        </div>
+
+        <div id="contentArea" class="hidden">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
+                <div class="lg:col-span-2 flex flex-col">
+                    <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm flex flex-col flex-1 min-h-0">
+                        <h3 class="font-semibold text-slate-800 text-sm uppercase tracking-wider mb-4 shrink-0">当前指标</h3>
+                        <div id="metricsCards" class="grid grid-cols-2 sm:grid-cols-4 gap-4"></div>
+                    </div>
+                </div>
+                <div class="flex flex-col">
+                    <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm flex flex-col flex-1 min-h-0">
+                        <h3 class="font-semibold text-slate-800 text-sm uppercase tracking-wider mb-4 shrink-0">进程 Top 5</h3>
+                        <div id="processTopCpuList" class="overflow-x-auto text-xs min-h-[8rem]"></div>
+                    </div>
+                </div>
+                <div class="lg:col-span-2 flex flex-col">
+                    <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm flex flex-col flex-1 min-h-0">
+                        <h3 class="font-semibold text-slate-800 text-sm uppercase tracking-wider mb-4 shrink-0">CPU 与 内存（近 24 小时）</h3>
+                        <div class="h-[338px] w-full min-h-[338px] shrink-0">
+                            <canvas id="chartCpuMem"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex flex-col">
+                    <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm flex flex-col flex-1 min-h-0">
+                        <h3 class="font-semibold text-slate-800 text-sm uppercase tracking-wider mb-4 shrink-0">磁盘使用</h3>
+                        <div id="diskUsage" class="space-y-4 h-[338px] min-h-[338px] overflow-y-auto pr-1">
+                            <p class="text-sm text-slate-500">加载中…</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="lg:col-span-2 flex flex-col">
+                    <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm flex flex-col flex-1 min-h-0">
+                        <h3 class="font-semibold text-slate-800 text-sm uppercase tracking-wider mb-4 shrink-0">网络流量（近 24 小时）</h3>
+                        <div class="h-[200px] w-full min-h-[200px] shrink-0">
+                            <canvas id="chartNetwork"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex flex-col">
+                    <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm flex flex-col flex-1 min-h-0">
+                        <h3 class="font-semibold text-slate-800 text-sm uppercase tracking-wider mb-4 shrink-0">当前速率</h3>
+                        <p class="text-xs text-slate-500 uppercase font-bold mb-1">入站</p>
+                        <p id="networkRx" class="text-lg font-bold text-slate-800 font-mono mb-3">—</p>
+                        <p class="text-xs text-slate-500 uppercase font-bold mb-1">出站</p>
+                        <p id="networkTx" class="text-lg font-bold text-slate-800 font-mono">—</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="allHostsArea" class="hidden">
+            <div class="flex flex-wrap items-center justify-between gap-4 mb-4">
+                <h2 class="text-sm font-bold text-slate-700 uppercase tracking-wider">全部主机</h2>
+                <div class="flex flex-wrap items-center gap-3">
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs text-slate-500">排序</span>
+                        <select id="monitorSortBy" class="px-3 py-1.5 rounded-lg text-sm border border-slate-300 bg-white text-slate-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <option value="none">默认</option>
+                            <option value="cpu">CPU 使用率</option>
+                            <option value="mem">内存使用率</option>
+                            <option value="disk">磁盘使用率</option>
+                        </select>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs text-slate-500">每行显示</span>
+                        <button type="button" data-cols="3" class="cols-btn px-3 py-1.5 rounded-lg text-sm font-medium border transition border-slate-300 bg-white text-slate-700 hover:bg-slate-50">3</button>
+                        <button type="button" data-cols="4" class="cols-btn px-3 py-1.5 rounded-lg text-sm font-medium border transition border-slate-300 bg-white text-slate-700 hover:bg-slate-50">4</button>
+                        <button type="button" data-cols="5" class="cols-btn px-3 py-1.5 rounded-lg text-sm font-medium border transition border-slate-300 bg-white text-slate-700 hover:bg-slate-50">5</button>
+                    </div>
+                </div>
+            </div>
+            <div id="allHostsGrid" class="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+                <p class="col-span-full text-slate-500 text-sm">加载中…</p>
+            </div>
+        </div>
+
+        <div id="emptyState" class="bg-white border border-slate-200 rounded-xl p-12 text-center text-slate-500 hidden">
+            <p>请先<a href="/host" class="text-blue-600 hover:underline">添加主机</a>。</p>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script>
+(function() {
+    var currentHostId = null;
+    var hostInfoBar = document.getElementById('hostInfoBar');
+    var hostInfo = document.getElementById('hostInfo');
+    var contentArea = document.getElementById('contentArea');
+    var allHostsArea = document.getElementById('allHostsArea');
+    var allHostsGrid = document.getElementById('allHostsGrid');
+    var emptyState = document.getElementById('emptyState');
+    var allHostCharts = {};
+    var colsPerRow = parseInt(sessionStorage.getItem('monitorColsPerRow') || '4', 10) || 4;
+    if (colsPerRow < 3 || colsPerRow > 5) colsPerRow = 4;
+    var hostNameEl = document.getElementById('hostName');
+    var hostHostnameEl = document.getElementById('hostHostname');
+    var hostLoadEl = document.getElementById('hostLoad');
+    var hostUptimeEl = document.getElementById('hostUptime');
+    var hostTerminalBtn = document.getElementById('hostTerminalBtn');
+    var networkRxEl = document.getElementById('networkRx');
+    var networkTxEl = document.getElementById('networkTx');
+    var chartNetwork = null;
+    var chartNetworkRateDiv = 1;
+    var chartNetworkRateUnit = 'B/s';
+    var diskUsage = document.getElementById('diskUsage');
+    var processTopCpuList = document.getElementById('processTopCpuList');
+    var metricsCards = document.getElementById('metricsCards');
+    var chartCpuMem = null;
+    var ws = null;
+    var allHostsResults = [];
+    var monitorSortBy = 'none';
+    var hosts = [
+        <#list hosts as h>
+        { id: ${h.id!}, name: '${(h.name!"")?replace("'","\\'")}', hostname: '${(h.hostname!"")?replace("'","\\'")}', groupName: '${((groupIdToName!{})[h.groupId?c!]!"")?replace("'","\\'")}' }<#if h_has_next>,</#if>
+        </#list>
+    ];
+
+    function getHostLabel(h) { return (h.name || '') + ' (' + (h.hostname || '') + ')'; }
+    function showMonitorLoading() {
+        var el = document.getElementById('monitorLoadingOverlay');
+        if (el) { el.classList.remove('hidden'); el.style.display = 'flex'; }
+    }
+    function hideMonitorLoading() {
+        var el = document.getElementById('monitorLoadingOverlay');
+        if (el) { el.classList.add('hidden'); el.style.display = 'none'; }
+    }
+    /** CPU/内存/磁盘使用率颜色：<70% 绿，70%~90% 黄，>=90% 红 */
+    function usageColorClass(pct) {
+        if (pct == null || pct === '' || (typeof pct === 'number' && isNaN(pct))) return 'text-slate-800';
+        var n = Number(pct);
+        if (n >= 90) return 'text-rose-600';
+        if (n >= 70) return 'text-amber-600';
+        return 'text-emerald-600';
+    }
+    /** 与后端一致：1024 进制 (KiB/MiB/GiB)，单位标为 K/M/G */
+    function formatBytes(n) {
+        if (!n) return '0 B';
+        var k = 1024;
+        if (n >= k * k * k * k) return (n / (k * k * k * k)).toFixed(1) + ' T';
+        if (n >= k * k * k) return (n / (k * k * k)).toFixed(1) + ' G';
+        if (n >= k * k) return (n / (k * k)).toFixed(1) + ' M';
+        if (n >= k) return (n / k).toFixed(1) + ' K';
+        return n + ' B';
+    }
+    function formatUptime(sec) {
+        if (sec == null || sec < 0) return '—';
+        var d = Math.floor(sec / 86400);
+        var h = Math.floor((sec % 86400) / 3600);
+        var m = Math.floor((sec % 3600) / 60);
+        if (d > 0) return d + ' 天 ' + h + ' 时';
+        if (h > 0) return h + ' 时 ' + m + ' 分';
+        return m + ' 分';
+    }
+    function applyColsGrid() {
+        if (!allHostsGrid) return;
+        var base = 'grid gap-4 grid-cols-1 sm:grid-cols-2 ';
+        var lg = colsPerRow === 3 ? 'md:grid-cols-3 lg:grid-cols-3' : colsPerRow === 5 ? 'md:grid-cols-3 lg:grid-cols-5' : 'md:grid-cols-3 lg:grid-cols-4';
+        allHostsGrid.className = base + lg;
+        document.querySelectorAll('.cols-btn').forEach(function(btn) {
+            var n = parseInt(btn.getAttribute('data-cols'), 10);
+            if (n === colsPerRow) {
+                btn.classList.add('bg-blue-600', 'text-white', 'border-blue-600');
+                btn.classList.remove('bg-white', 'text-slate-700');
+            } else {
+                btn.classList.remove('bg-blue-600', 'text-white', 'border-blue-600');
+                btn.classList.add('bg-white', 'text-slate-700');
+            }
+        });
+    }
+    function sortAllHostsResults(results, sortBy) {
+        if (!sortBy || sortBy === 'none') return results.slice();
+        return results.slice().sort(function(a, b) {
+            var la = a.latest, lb = b.latest;
+            var av = 0, bv = 0;
+            if (sortBy === 'cpu') { av = (la && la.cpuUsage != null) ? la.cpuUsage : -1; bv = (lb && lb.cpuUsage != null) ? lb.cpuUsage : -1; }
+            else if (sortBy === 'mem') { av = (la && la.memUsagePercent != null) ? la.memUsagePercent : -1; bv = (lb && lb.memUsagePercent != null) ? lb.memUsagePercent : -1; }
+            else if (sortBy === 'disk') { av = (la && la.diskUsagePercent != null) ? la.diskUsagePercent : -1; bv = (lb && lb.diskUsagePercent != null) ? lb.diskUsagePercent : -1; }
+            return bv - av;
+        });
+    }
+    function renderAllHostsCards(results) {
+        if (!allHostsGrid) return;
+        allHostsGrid.innerHTML = '';
+        var staleMs = 30 * 60 * 1000;
+        function gaugeColor(pct) {
+            if (pct == null || isNaN(pct)) return '#e2e8f0';
+            var n = Number(pct);
+            if (n >= 90) return '#e11d48';
+            if (n >= 70) return '#f59e0b';
+            return '#10b981';
+        }
+        results.forEach(function(r) {
+            var h = r.host, latest = r.latest;
+            var card = document.createElement('div');
+            card.className = 'bg-white border border-slate-200 rounded-xl p-3 shadow-sm flex flex-col';
+            var dataFresh = false;
+            if (latest && latest.collectTime) {
+                var ct = new Date(latest.collectTime).getTime();
+                if (!isNaN(ct) && (Date.now() - ct) <= staleMs) dataFresh = true;
+            }
+            if (!dataFresh) latest = null;
+            var cpuVal = (latest && latest.cpuUsage != null) ? latest.cpuUsage : null;
+            var memVal = (latest && latest.memUsagePercent != null) ? latest.memUsagePercent : null;
+            var diskVal = (latest && latest.diskUsagePercent != null) ? latest.diskUsagePercent : null;
+            var cpu = cpuVal != null ? cpuVal.toFixed(1) : '—';
+            var mem = memVal != null ? memVal.toFixed(1) : '—';
+            var disk = diskVal != null ? diskVal.toFixed(0) + '%' : '—';
+            var cpuCoresStr = (latest && latest.cpuCores != null) ? (latest.cpuCores + ' 核') : '—';
+            var memTotalStr = (latest && latest.memTotal != null) ? formatBytes(latest.memTotal) : '—';
+            var diskTotalStr = (latest && latest.diskTotal != null) ? formatBytes(latest.diskTotal) : '—';
+            var rxRate = latest && latest.networkRxRateBps != null ? latest.networkRxRateBps : null;
+            var txRate = latest && latest.networkTxRateBps != null ? latest.networkTxRateBps : null;
+            var netStr = (rxRate != null || txRate != null) ? (formatBytes(rxRate || 0) + '/s ' + formatBytes(txRate || 0) + '/s') : '—';
+            var loadStr = (latest && latest.loadAvg != null && latest.loadAvg !== '') ? latest.loadAvg : '—';
+            var icmpRttMs = latest && latest.icmpRttMs != null ? latest.icmpRttMs : null;
+            var icmpStr = icmpRttMs == null ? '\u2014' : (icmpRttMs >= 9999 ? '\u4e0d\u53ef\u8fbe' : icmpRttMs + 'ms');
+            var icmpCl = icmpRttMs == null ? 'text-slate-500' : (icmpRttMs >= 9999 ? 'text-rose-600' : 'text-emerald-600');
+            var cpuPct = (cpuVal != null ? Math.min(100, Math.max(0, cpuVal)) : 0);
+            var memPct = (memVal != null ? Math.min(100, Math.max(0, memVal)) : 0);
+            var diskPct = (diskVal != null ? Math.min(100, Math.max(0, diskVal)) : 0);
+            var cpuGaugeBg = 'conic-gradient(' + gaugeColor(cpuVal) + ' 0% ' + cpuPct + '%, #e2e8f0 ' + cpuPct + '% 100%)';
+            var memGaugeBg = 'conic-gradient(' + gaugeColor(memVal) + ' 0% ' + memPct + '%, #e2e8f0 ' + memPct + '% 100%)';
+            var diskGaugeBg = 'conic-gradient(' + gaugeColor(diskVal) + ' 0% ' + diskPct + '%, #e2e8f0 ' + diskPct + '% 100%)';
+            var nameEsc = (h.name || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+            var hostnameEsc = (h.hostname || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+            card.innerHTML = '<div class="flex items-center justify-between mb-2"><a class="all-host-card-title font-bold text-slate-800 truncate hover:text-blue-600 hover:underline transition-colors" href="/monitor?hostId=' + encodeURIComponent(h.id) + '" target="_blank" rel="noopener noreferrer" title="' + hostnameEsc + '">' + nameEsc + '</a><div class="flex gap-1 shrink-0"><button type="button" class="all-host-terminal px-2 py-1 text-xs font-medium rounded bg-slate-100 hover:bg-slate-200 text-slate-700 border-0 cursor-pointer inline-flex items-center gap-1" data-host-id="' + h.id + '" data-host-name="' + nameEsc + '"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>终端</button><a class="all-host-detail inline-block px-2 py-1 text-xs font-medium rounded bg-blue-100 hover:bg-blue-200 text-blue-700 no-underline cursor-pointer" href="/monitor?hostId=' + encodeURIComponent(h.id) + '" target="_blank" rel="noopener noreferrer">详情</a></div></div><div class="flex gap-2 justify-center mb-2"><div class="flex flex-col items-center"><div class="w-11 h-11 rounded-full flex items-center justify-center" style="background:' + cpuGaugeBg + '"><span class="w-8 h-8 rounded-full bg-white flex items-center justify-center text-[10px] font-bold text-slate-700">' + cpu + '</span></div><span class="text-[10px] text-slate-500 mt-0.5">CPU</span><span class="text-[10px] text-slate-600 font-mono">' + cpuCoresStr + '</span></div><div class="flex flex-col items-center"><div class="w-11 h-11 rounded-full flex items-center justify-center" style="background:' + memGaugeBg + '"><span class="w-8 h-8 rounded-full bg-white flex items-center justify-center text-[10px] font-bold text-slate-700">' + mem + '</span></div><span class="text-[10px] text-slate-500 mt-0.5">内存</span><span class="text-[10px] text-slate-600 font-mono">' + memTotalStr + '</span></div><div class="flex flex-col items-center"><div class="w-11 h-11 rounded-full flex items-center justify-center" style="background:' + diskGaugeBg + '"><span class="w-8 h-8 rounded-full bg-white flex items-center justify-center text-[10px] font-bold text-slate-700">' + disk + '</span></div><span class="text-[10px] text-slate-500 mt-0.5">磁盘</span><span class="text-[10px] text-slate-600 font-mono">' + diskTotalStr + '</span></div></div><div class="grid grid-cols-2 gap-1.5 text-xs"><div class="bg-slate-50 rounded p-1.5 text-center"><span class="text-slate-500">延迟</span> <span class="font-bold font-mono text-[10px] ' + icmpCl + '">' + icmpStr + '</span></div><div class="bg-slate-50 rounded p-1.5 text-center"><span class="text-slate-500">负载</span> <span class="font-bold text-slate-700 font-mono text-[10px]">' + loadStr + '</span></div><div class="bg-slate-50 rounded p-1.5 text-center col-span-2"><span class="text-slate-500">流量</span> <span class="font-bold text-slate-800 font-mono text-[10px]">' + netStr + '</span></div></div>';
+            allHostsGrid.appendChild(card);
+        });
+        document.querySelectorAll('.all-host-terminal').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var id = btn.getAttribute('data-host-id');
+                var name = btn.getAttribute('data-host-name') || '';
+                if (id && typeof window.openTerminalModal === 'function') window.openTerminalModal(id, name);
+            });
+        });
+    }
+    function loadAllHosts() {
+        if (!allHostsGrid || !hosts.length) return;
+        showMonitorLoading();
+        allHostsGrid.innerHTML = '';
+        applyColsGrid();
+        var sortSelect = document.getElementById('monitorSortBy');
+        if (sortSelect) { monitorSortBy = sortSelect.value || 'none'; }
+        var idList = hosts.map(function(h) { return h.id; });
+        fetch('/monitor/api/latest', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify(idList)
+        })
+            .then(function(r) { return r.status === 200 ? r.json() : []; })
+            .then(function(latestList) {
+                var byHostId = {};
+                if (Array.isArray(latestList)) latestList.forEach(function(m) { if (m && m.hostId != null) byHostId[m.hostId] = m; });
+                var results = hosts.map(function(h) { return { host: h, latest: byHostId[h.id] || null }; });
+                allHostsResults = results;
+                var sorted = sortAllHostsResults(allHostsResults, monitorSortBy);
+                renderAllHostsCards(sorted);
+            })
+            .catch(function() {
+                allHostsGrid.innerHTML = '<p class="col-span-full text-red-500 text-sm">加载失败</p>';
+            })
+            .finally(function() {
+                hideMonitorLoading();
+            });
+    }
+    function updateUrlHostId(hostId) {
+        var params = new URLSearchParams(location.search);
+        if (hostId) params.set('hostId', String(hostId)); else params.delete('hostId');
+        var qs = params.toString();
+        var newUrl = location.pathname + (qs ? '?' + qs : '');
+        if (newUrl !== location.pathname + location.search) history.replaceState(null, '', newUrl);
+    }
+    function showHost(hostId) {
+        currentHostId = hostId || null;
+        if (!hostId) {
+            updateUrlHostId(null);
+            if (hostInfoBar) hostInfoBar.classList.add('hidden');
+            contentArea.classList.add('hidden');
+            if (ws) { ws.close(); ws = null; }
+            if (hosts.length === 0) {
+                emptyState.classList.remove('hidden');
+                if (allHostsArea) allHostsArea.classList.add('hidden');
+            } else {
+                emptyState.classList.add('hidden');
+                if (allHostsArea) { allHostsArea.classList.remove('hidden'); loadAllHosts(); }
+            }
+            return;
+        }
+        var host = hosts.find(function(h) { return String(h.id) === String(hostId); });
+        if (!host) return;
+        updateUrlHostId(hostId);
+        emptyState.classList.add('hidden');
+        if (allHostsArea) allHostsArea.classList.add('hidden');
+        if (hostInfoBar) hostInfoBar.classList.remove('hidden');
+        contentArea.classList.remove('hidden');
+        hostNameEl.textContent = host.name || '—';
+        hostHostnameEl.textContent = host.hostname || '—';
+        var groupEl = document.getElementById('hostGroup');
+        if (groupEl) groupEl.textContent = (host.groupName || '').trim() || '—';
+
+        function setLoad(s) { hostLoadEl.textContent = s || '—'; }
+        if (hostUptimeEl) hostUptimeEl.textContent = '—';
+        if (networkRxEl) networkRxEl.textContent = '—';
+        if (networkTxEl) networkTxEl.textContent = '—';
+
+        showMonitorLoading();
+        fetch('/monitor/api/latest/' + hostId, { credentials: 'same-origin' })
+            .then(function(r) { return r.status === 200 ? r.json() : null; })
+            .then(function(latest) {
+                var staleMs = 30 * 60 * 1000;
+                if (latest) {
+                    if (latest.collectTime) {
+                        var ct = new Date(latest.collectTime).getTime();
+                        if (isNaN(ct) || (Date.now() - ct) > staleMs) latest = null;
+                    } else {
+                        latest = null;
+                    }
+                }
+                if (latest && latest.loadAvg) setLoad(latest.loadAvg);
+                if (latest && latest.uptimeSeconds != null && hostUptimeEl) hostUptimeEl.textContent = formatUptime(latest.uptimeSeconds);
+                var rxRate = latest && latest.networkRxRateBps != null ? latest.networkRxRateBps : null;
+                var txRate = latest && latest.networkTxRateBps != null ? latest.networkTxRateBps : null;
+                if (networkRxEl) networkRxEl.textContent = rxRate != null ? formatBytes(rxRate) + '/s' : '—';
+                if (networkTxEl) networkTxEl.textContent = txRate != null ? formatBytes(txRate) + '/s' : '—';
+                if (latest && latest.diskJson) {
+                    try {
+                        var disks = JSON.parse(latest.diskJson);
+                        diskUsage.innerHTML = disks.length ? disks.map(function(d) {
+                            var pct = d.usePercent != null ? d.usePercent : 0;
+                            var total = d.total != null ? d.total : 0;
+                            var used = d.used != null ? d.used : 0;
+                            var sizeStr = formatBytes(total);
+                            var color = pct >= 90 ? 'bg-rose-500' : pct >= 70 ? 'bg-amber-500' : 'bg-blue-500';
+                            var mount = (d.mount || '');
+                            var mountEsc = mount.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+                            return '<div class="space-y-1"><div class="flex justify-between gap-2 text-xs min-w-0"><span class="font-mono text-slate-700 min-w-0 truncate" title="' + mountEsc + '">' + mountEsc + '</span><span class="text-slate-500 shrink-0">' + pct + '% · ' + sizeStr + '</span></div><div class="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden"><div class="h-full ' + color + ' rounded-full" style="width:' + Math.min(100, pct) + '%"></div></div></div>';
+                        }).join('') : '<p class="text-sm text-slate-500">无数据</p>';
+                    } catch (e) { diskUsage.innerHTML = '<p class="text-sm text-slate-500">解析失败</p>'; }
+                } else {
+                    diskUsage.innerHTML = '<p class="text-sm text-slate-500">暂无磁盘数据</p>';
+                }
+                var procCount = '—';
+                if (latest && latest.processSummary) {
+                    try {
+                        var ps = JSON.parse(latest.processSummary);
+                        procCount = ps.count != null ? String(ps.count) : '—';
+                    } catch (e) {}
+                }
+                if (processTopCpuList) {
+                    if (latest && latest.processTopCpu) {
+                        try {
+                            var topList = JSON.parse(latest.processTopCpu);
+                            if (Array.isArray(topList) && topList.length > 0) {
+                                var rows = topList.map(function(p) {
+                                    var pid = p.pid != null ? p.pid : '—';
+                                    var user = (p.user || '—').toString().replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                                    var cpu = p.cpu != null ? Number(p.cpu).toFixed(1) : '—';
+                                    var mem = p.mem != null ? Number(p.mem).toFixed(1) : '—';
+                                    var comm = (p.comm || '—').toString().replace(/</g, '&lt;').replace(/>/g, '&gt;').substring(0, 24);
+                                    return '<tr class="border-b border-slate-100"><td class="py-1 pr-2 font-mono text-slate-600">' + pid + '</td><td class="py-1 pr-2 text-slate-600 truncate max-w-[4rem]" title="' + user + '">' + user + '</td><td class="py-1 pr-2 text-amber-600">' + cpu + '%</td><td class="py-1 pr-2 text-slate-600">' + mem + '%</td><td class="py-1 text-slate-800 truncate max-w-[6rem]" title="' + comm + '">' + comm + '</td></tr>';
+                                }).join('');
+                                processTopCpuList.innerHTML = '<table class="w-full"><thead><tr class="text-slate-500 border-b border-slate-200"><th class="text-left py-1 pr-2">PID</th><th class="text-left py-1 pr-2">USER</th><th class="text-left py-1 pr-2">CPU</th><th class="text-left py-1 pr-2">MEM</th><th class="text-left py-1">COMMAND</th></tr></thead><tbody>' + rows + '</tbody></table>';
+                            } else {
+                                processTopCpuList.innerHTML = '<p class="text-slate-500">暂无数据</p>';
+                            }
+                        } catch (e) { processTopCpuList.innerHTML = '<p class="text-slate-500">—</p>'; }
+                    } else {
+                        processTopCpuList.innerHTML = '<p class="text-slate-500">暂无数据</p>';
+                    }
+                }
+                if (latest) {
+                    var cpu = latest.cpuUsage != null ? latest.cpuUsage.toFixed(1) : '—';
+                    var mem = latest.memUsagePercent != null ? latest.memUsagePercent.toFixed(1) : '—';
+                    var disk = latest.diskUsagePercent != null ? latest.diskUsagePercent + '%' : '—';
+                    var cpuExtra = (latest.cpuCores != null && latest.cpuCores > 0) ? '<p class="text-xs text-slate-500 mt-0.5">' + latest.cpuCores + ' 核</p>' : '';
+                    var memExtra = (latest.memUsedFormatted || latest.memTotalFormatted) ? '<p class="text-xs text-slate-500 mt-0.5">' + (latest.memUsedFormatted || '') + ' / ' + (latest.memTotalFormatted || '') + '</p>' : '';
+                    var diskExtra = (latest.diskUsedFormatted || latest.diskTotalFormatted) ? '<p class="text-xs text-slate-500 mt-0.5">' + (latest.diskUsedFormatted || '') + ' / ' + (latest.diskTotalFormatted || '') + '</p>' : '';
+                    var cpuCl = usageColorClass(latest.cpuUsage);
+                    var memCl = usageColorClass(latest.memUsagePercent);
+                    var diskCl = usageColorClass(latest.diskUsagePercent);
+                    metricsCards.innerHTML = '<div class="bg-slate-50 rounded-xl p-4 border border-slate-100"><p class="text-xs text-slate-500 uppercase font-bold mb-1">CPU</p><p class="text-xl font-bold ' + cpuCl + '">' + cpu + '%</p>' + cpuExtra + '</div><div class="bg-slate-50 rounded-xl p-4 border border-slate-100"><p class="text-xs text-slate-500 uppercase font-bold mb-1">内存</p><p class="text-xl font-bold ' + memCl + '">' + mem + '%</p>' + memExtra + '</div><div class="bg-slate-50 rounded-xl p-4 border border-slate-100"><p class="text-xs text-slate-500 uppercase font-bold mb-1">磁盘</p><p class="text-xl font-bold ' + diskCl + '">' + disk + '</p>' + diskExtra + '</div><div class="bg-slate-50 rounded-xl p-4 border border-slate-100"><p class="text-xs text-slate-500 uppercase font-bold mb-1">进程数</p><p class="text-xl font-bold text-slate-800">' + procCount + '</p></div>';
+                } else {
+                    metricsCards.innerHTML = '<div class="bg-slate-50 rounded-xl p-4 border border-slate-100"><p class="text-xs text-slate-500 uppercase font-bold mb-1">CPU</p><p class="text-xl font-bold text-slate-400">—</p></div><div class="bg-slate-50 rounded-xl p-4 border border-slate-100"><p class="text-xs text-slate-500 uppercase font-bold mb-1">内存</p><p class="text-xl font-bold text-slate-400">—</p></div><div class="bg-slate-50 rounded-xl p-4 border border-slate-100"><p class="text-xs text-slate-500 uppercase font-bold mb-1">磁盘</p><p class="text-xl font-bold text-slate-400">—</p></div><div class="bg-slate-50 rounded-xl p-4 border border-slate-100"><p class="text-xs text-slate-500 uppercase font-bold mb-1">进程数</p><p class="text-xl font-bold text-slate-400">—</p></div>';
+                }
+            })
+            .catch(function() {
+                diskUsage.innerHTML = '<p class="text-sm text-slate-500">加载失败</p>';
+                if (processTopCpuList) processTopCpuList.innerHTML = '';
+            })
+            .finally(function() {
+                hideMonitorLoading();
+            });
+
+        fetch('/monitor/api/history/' + hostId + '?hours=24', { credentials: 'same-origin' })
+            .then(function(r) { return r.ok ? r.json() : []; })
+            .then(function(list) {
+                var hours = 24;
+                var intervalMinutes = 10;
+                var totalSlots = Math.floor((hours * 60) / intervalMinutes);
+                var now = Date.now();
+                var intervalMs = intervalMinutes * 60 * 1000;
+                var listByTime = (Array.isArray(list) ? list : []).map(function(m) {
+                    return { t: m.collectTime ? new Date(m.collectTime).getTime() : 0, m: m };
+                }).filter(function(x) { return x.t > 0; });
+                var labels = [];
+                var cpuData = [];
+                var memData = [];
+                var rxData = [];
+                var txData = [];
+                for (var i = 0; i < totalSlots; i++) {
+                    var slotTime = now - (totalSlots - 1 - i) * intervalMs;
+                    labels.push(new Date(slotTime).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }));
+                    var best = null, bestDiff = intervalMs;
+                    for (var j = 0; j < listByTime.length; j++) {
+                        var d = Math.abs(listByTime[j].t - slotTime);
+                        if (d < bestDiff) { bestDiff = d; best = listByTime[j].m; }
+                    }
+                    cpuData.push(best && best.cpuUsage != null ? best.cpuUsage : 0);
+                    memData.push(best && best.memUsagePercent != null ? best.memUsagePercent : 0);
+                    var rxBps = best && best.networkRxRateBps != null ? best.networkRxRateBps : 0;
+                    var txBps = best && best.networkTxRateBps != null ? best.networkTxRateBps : 0;
+                    rxData.push(rxBps);
+                    txData.push(txBps);
+                }
+                var maxBps = 0;
+                for (var i = 0; i < rxData.length; i++) {
+                    if (rxData[i] > maxBps) maxBps = rxData[i];
+                    if (txData[i] > maxBps) maxBps = txData[i];
+                }
+                var rateUnit = 'B/s', rateDiv = 1;
+                if (maxBps >= 1073741824) { rateUnit = 'GB/s'; rateDiv = 1073741824; }
+                else if (maxBps >= 1048576) { rateUnit = 'MB/s'; rateDiv = 1048576; }
+                else if (maxBps >= 1024) { rateUnit = 'KB/s'; rateDiv = 1024; }
+                chartNetworkRateUnit = rateUnit;
+                chartNetworkRateDiv = rateDiv;
+                for (var i = 0; i < rxData.length; i++) {
+                    rxData[i] = Math.round((rxData[i] / rateDiv) * 10) / 10;
+                    txData[i] = Math.round((txData[i] / rateDiv) * 10) / 10;
+                }
+                var ctx = document.getElementById('chartCpuMem');
+                if (ctx) {
+                    if (chartCpuMem) chartCpuMem.destroy();
+                    chartCpuMem = new Chart(ctx.getContext('2d'), {
+                        type: 'line',
+                        data: {
+                            labels: labels,
+                            datasets: [
+                                { label: 'CPU %', data: cpuData, borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.1)', fill: true, tension: 0.2 },
+                                { label: '内存 %', data: memData, borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.1)', fill: true, tension: 0.2 }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: {
+                                y: { min: 0, max: 100 }
+                            },
+                            plugins: { legend: { position: 'top' } }
+                        }
+                    });
+                }
+                var ctxNet = document.getElementById('chartNetwork');
+                if (ctxNet) {
+                    if (chartNetwork) chartNetwork.destroy();
+                    chartNetwork = new Chart(ctxNet.getContext('2d'), {
+                        type: 'line',
+                        data: {
+                            labels: labels,
+                            datasets: [
+                                { label: '入站 (' + rateUnit + ')', data: rxData, borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.1)', fill: true, tension: 0.2 },
+                                { label: '出站 (' + rateUnit + ')', data: txData, borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,0.1)', fill: true, tension: 0.2 }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: {
+                                y: { beginAtZero: true }
+                            },
+                            plugins: { legend: { position: 'top' } }
+                        }
+                    });
+                }
+            })
+            .catch(function() {});
+
+        if (ws) ws.close();
+        var proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+        ws = new WebSocket(proto + '//' + location.host + '/ws/metric');
+        ws.onopen = function() { ws.send(JSON.stringify({ hostId: parseInt(hostId, 10) })); };
+        ws.onmessage = function(e) {
+            try {
+                var d = JSON.parse(e.data);
+                var cpu = (d.cpu != null ? d.cpu : 0).toFixed(1);
+                var mem = (d.memUsage != null ? d.memUsage : 0).toFixed(1);
+                var disk = (d.diskUsage != null ? d.diskUsage : 0) + '%';
+                var cpuExtra = (d.cpuCores != null && d.cpuCores > 0) ? '<p class="text-xs text-slate-500 mt-0.5">' + d.cpuCores + ' 核</p>' : '';
+                var memExtra = (d.memUsedFormatted || d.memTotalFormatted) ? '<p class="text-xs text-slate-500 mt-0.5">' + (d.memUsedFormatted || '') + ' / ' + (d.memTotalFormatted || '') + '</p>' : '';
+                var diskExtra = (d.diskUsedFormatted || d.diskTotalFormatted) ? '<p class="text-xs text-slate-500 mt-0.5">' + (d.diskUsedFormatted || '') + ' / ' + (d.diskTotalFormatted || '') + '</p>' : '';
+                var cpuCl = usageColorClass(d.cpu);
+                var memCl = usageColorClass(d.memUsage);
+                var diskCl = usageColorClass(d.diskUsage);
+                var procCount = '—';
+                if (d.processSummary) try { var ps = JSON.parse(d.processSummary); procCount = ps.count != null ? String(ps.count) : '—'; } catch (e) {}
+                if (processTopCpuList && d.processTopCpu) {
+                    try {
+                        var topList = JSON.parse(d.processTopCpu);
+                        if (Array.isArray(topList) && topList.length > 0) {
+                            var rows = topList.map(function(p) {
+                                var pid = p.pid != null ? p.pid : '—';
+                                var user = (p.user || '—').toString().replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                                var cpuP = p.cpu != null ? Number(p.cpu).toFixed(1) : '—';
+                                var memP = p.mem != null ? Number(p.mem).toFixed(1) : '—';
+                                var comm = (p.comm || '—').toString().replace(/</g, '&lt;').replace(/>/g, '&gt;').substring(0, 24);
+                                return '<tr class="border-b border-slate-100"><td class="py-1 pr-2 font-mono text-slate-600">' + pid + '</td><td class="py-1 pr-2 text-slate-600 truncate max-w-[4rem]" title="' + user + '">' + user + '</td><td class="py-1 pr-2 text-amber-600">' + cpuP + '%</td><td class="py-1 pr-2 text-slate-600">' + memP + '%</td><td class="py-1 text-slate-800 truncate max-w-[6rem]" title="' + comm + '">' + comm + '</td></tr>';
+                            }).join('');
+                            processTopCpuList.innerHTML = '<table class="w-full"><thead><tr class="text-slate-500 border-b border-slate-200"><th class="text-left py-1 pr-2">PID</th><th class="text-left py-1 pr-2">USER</th><th class="text-left py-1 pr-2">CPU</th><th class="text-left py-1 pr-2">MEM</th><th class="text-left py-1">COMMAND</th></tr></thead><tbody>' + rows + '</tbody></table>';
+                        }
+                    } catch (e) {}
+                }
+                metricsCards.innerHTML = '<div class="bg-slate-50 rounded-xl p-4 border border-slate-100"><p class="text-xs text-slate-500 uppercase font-bold mb-1">CPU</p><p class="text-xl font-bold ' + cpuCl + '">' + cpu + '%</p>' + cpuExtra + '</div><div class="bg-slate-50 rounded-xl p-4 border border-slate-100"><p class="text-xs text-slate-500 uppercase font-bold mb-1">内存</p><p class="text-xl font-bold ' + memCl + '">' + mem + '%</p>' + memExtra + '</div><div class="bg-slate-50 rounded-xl p-4 border border-slate-100"><p class="text-xs text-slate-500 uppercase font-bold mb-1">磁盘</p><p class="text-xl font-bold ' + diskCl + '">' + disk + '</p>' + diskExtra + '</div><div class="bg-slate-50 rounded-xl p-4 border border-slate-100"><p class="text-xs text-slate-500 uppercase font-bold mb-1">进程数</p><p class="text-xl font-bold text-slate-800">' + procCount + '</p></div>';
+                if (chartCpuMem && chartCpuMem.data && chartCpuMem.data.datasets && chartCpuMem.data.labels) {
+                    var len = chartCpuMem.data.labels.length;
+                    if (len > 0) {
+                        var last = len - 1;
+                        chartCpuMem.data.datasets[0].data[last] = (d.cpu != null && !isNaN(d.cpu)) ? d.cpu : 0;
+                        chartCpuMem.data.datasets[1].data[last] = (d.memUsage != null && !isNaN(d.memUsage)) ? d.memUsage : 0;
+                        chartCpuMem.data.labels[last] = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+                        chartCpuMem.update('none');
+                    }
+                }
+                if (chartNetwork && chartNetwork.data && chartNetwork.data.datasets && chartNetwork.data.labels) {
+                    var lenN = chartNetwork.data.labels.length;
+                    if (lenN > 0) {
+                        var lastN = lenN - 1;
+                        var rxBps = (d.networkRxRateBps != null && !isNaN(d.networkRxRateBps)) ? d.networkRxRateBps : 0;
+                        var txBps = (d.networkTxRateBps != null && !isNaN(d.networkTxRateBps)) ? d.networkTxRateBps : 0;
+                        chartNetwork.data.datasets[0].data[lastN] = Math.round((rxBps / chartNetworkRateDiv) * 10) / 10;
+                        chartNetwork.data.datasets[1].data[lastN] = Math.round((txBps / chartNetworkRateDiv) * 10) / 10;
+                        chartNetwork.data.labels[lastN] = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+                        chartNetwork.update('none');
+                    }
+                }
+            } catch (err) {}
+        };
+    }
+
+    document.querySelectorAll('.cols-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var n = parseInt(btn.getAttribute('data-cols'), 10);
+            if (n >= 3 && n <= 5) {
+                colsPerRow = n;
+                sessionStorage.setItem('monitorColsPerRow', String(colsPerRow));
+                applyColsGrid();
+            }
+        });
+    });
+    var sortSelectEl = document.getElementById('monitorSortBy');
+    if (sortSelectEl) {
+        sortSelectEl.addEventListener('change', function() {
+            monitorSortBy = sortSelectEl.value || 'none';
+            if (allHostsResults.length > 0) {
+                var sorted = sortAllHostsResults(allHostsResults, monitorSortBy);
+                renderAllHostsCards(sorted);
+            }
+        });
+    }
+    var urlHostId = (function() {
+        var m = location.search.match(/[?&]hostId=([^&]+)/);
+        return m ? m[1].trim() : '';
+    })();
+    if (urlHostId && hosts.some(function(h) { return String(h.id) === String(urlHostId); })) {
+        showHost(urlHostId);
+    } else {
+        showHost(null);
+    }
+    if (hostTerminalBtn) {
+        hostTerminalBtn.addEventListener('click', function() {
+            var hostId = currentHostId;
+            if (!hostId) return;
+            var host = hosts.find(function(h) { return String(h.id) === String(hostId); });
+            var hostName = host ? host.name : '';
+            if (typeof window.openTerminalModal === 'function') window.openTerminalModal(hostId, hostName);
+        });
+    }
+})();
+    </script>
+</@layout.main>

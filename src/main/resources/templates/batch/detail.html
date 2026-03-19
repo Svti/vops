@@ -1,0 +1,18 @@
+<#import "../layout.html" as layout>
+<@layout.main title="任务详情" nav="batch">
+    <div class="bg-white border border-slate-200 rounded-xl p-5 mb-6 shadow-sm">
+        <p class="font-semibold text-slate-800">${task.name!''}</p>
+        <p class="text-slate-600 mt-1">命令：<code class="bg-slate-100 px-2 py-0.5 rounded text-slate-800 text-sm font-mono">${task.command!''}</code></p>
+        <p class="text-slate-600 mt-1">状态：<#if task.status == 1><span class="text-emerald-600">完成</span><#else><span class="text-amber-600">执行中</span></#if> | 成功 ${task.successCount!0} / 失败 ${task.failCount!0}</p>
+    </div>
+    <h2 class="text-sm font-semibold text-slate-600 uppercase tracking-wider mb-2">执行日志</h2>
+    <div class="bg-white border border-slate-200 rounded-xl p-4 text-slate-700 font-mono text-sm space-y-3">
+        <#list logs! as log>
+        <div class="border-b border-slate-200 pb-2">
+            主机: ${(hostIdToName[log.hostId?c])!} | 退出码: ${log.exitCode!''}
+            <#if log.output?? && log.output?has_content><pre class="mt-1 whitespace-pre-wrap text-slate-600">${log.output}</pre></#if>
+            <#if log.error?? && log.error?has_content><span class="text-red-600">${log.error}</span></#if>
+        </div>
+        </#list>
+    </div>
+</@layout.main>

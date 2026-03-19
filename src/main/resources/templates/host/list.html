@@ -1,0 +1,800 @@
+<#import "../layout.html" as layout>
+<@layout.main title="主机管理" nav="host">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <form method="get" action="/host" class="flex flex-wrap gap-2 flex-1 items-center">
+            <input type="hidden" name="size" value="${size!20}">
+            <select name="groupId" class="px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-800 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                <option value="">全部分组</option>
+                <#list groups! as g>
+                <option value="${g.id!}" <#if groupId?? && groupId == g.id>selected</#if>>${(g.name!)?html}</option>
+                </#list>
+            </select>
+            <select name="statusFilter" class="px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-800 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                <option value="">主机状态</option>
+                <option value="1" <#if statusFilter?? && statusFilter == 1>selected</#if>>启用</option>
+                <option value="0" <#if statusFilter?? && statusFilter == 0>selected</#if>>禁用</option>
+            </select>
+            <select name="onlineFilter" class="px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-800 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                <option value="">在线状态</option>
+                <option value="1" <#if onlineFilter?? && onlineFilter == 1>selected</#if>>在线</option>
+                <option value="0" <#if onlineFilter?? && onlineFilter == 0>selected</#if>>离线</option>
+            </select>
+            <input type="search" name="q" value="${q!''}" placeholder="搜索名称或主机名" class="flex-1 min-w-[8rem] px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition border-0 cursor-pointer">搜索</button>
+        </form>
+        <div class="flex flex-wrap gap-2 shrink-0 items-center">
+            <div id="batchOpWrap" class="hidden inline-block relative">
+                <button type="button" id="batchOpTrigger" class="px-4 py-2 bg-white border border-slate-300 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-50 transition cursor-pointer inline-flex items-center gap-1">批量操作 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg></button>
+                <div id="batchOpMenu" class="fixed py-1 min-w-[10rem] rounded-lg bg-white border border-slate-200 shadow-xl z-[200]" style="display: none;">
+                    <button type="button" class="js-batch-set-group flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 border-0 bg-transparent cursor-pointer rounded-t-lg">设置分组</button>
+                    <button type="button" class="js-batch-set-rules flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 border-0 bg-transparent cursor-pointer">设置监控规则</button>
+                    <button type="button" class="js-batch-set-auth flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 border-0 bg-transparent cursor-pointer">设置认证方式</button>
+                    <button type="button" class="js-batch-delete flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 border-0 bg-transparent cursor-pointer rounded-b-lg">删除</button>
+                </div>
+            </div>
+            <a href="/host/group" class="px-4 py-2 bg-white border border-slate-300 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-50 transition cursor-pointer">分组管理</a>
+            <button type="button" class="js-open-import-modal px-4 py-2 bg-white border border-slate-300 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-50 transition cursor-pointer">导入</button>
+            <button type="button" class="js-open-host-modal px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg shadow shadow-blue-500/30 transition cursor-pointer border-0" data-host-id="">新增主机</button>
+        </div>
+    </div>
+    <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+        <div class="overflow-x-auto rounded-xl">
+            <table class="w-full text-left text-sm min-w-[720px]">
+                <thead>
+                    <tr class="border-b border-slate-200 bg-slate-50">
+                        <th class="px-2 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider whitespace-nowrap w-0">
+                            <input type="checkbox" id="hostSelectAll" class="rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer" title="全选">
+                        </th>
+                        <th class="px-3 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider whitespace-nowrap w-0">名称</th>
+                        <th class="px-2 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider whitespace-nowrap w-0">分组</th>
+                        <th class="px-3 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider whitespace-nowrap w-0">主机</th>
+                        <th class="px-2 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider whitespace-nowrap w-0">认证</th>
+                        <th class="px-2 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider whitespace-nowrap w-0">状态</th>
+                        <th class="px-2 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider whitespace-nowrap w-0">CPU</th>
+                        <th class="px-2 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider whitespace-nowrap w-0">内存</th>
+                        <th class="px-2 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider whitespace-nowrap w-0">磁盘</th>
+                        <th class="px-2 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider whitespace-nowrap w-0">监控规则</th>
+                        <th class="px-3 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider text-right whitespace-nowrap w-0">操作</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-200">
+                    <#list hosts as h>
+                    <#assign status = (hostStatusMap!{})[h.id?c!]!>
+                    <tr class="hover:bg-slate-50 transition-colors">
+                        <td class="px-2 py-3 whitespace-nowrap">
+                            <input type="checkbox" class="js-host-cb rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer" value="${h.id!}" data-host-id="${h.id!}">
+                        </td>
+                        <td class="px-3 py-3 max-w-[10rem]"><a href="/monitor?hostId=${h.id!}" class="font-medium text-slate-800 hover:text-blue-600 hover:underline transition block truncate" title="${((h.description!)?trim)?has_content?then((h.description!)?html, (h.name!'')?html)}">${h.name!''}</a></td>
+                        <td class="px-2 py-3 text-slate-600 whitespace-nowrap max-w-[8rem] truncate" title="${(groupIdToName[h.groupId!?c!])!''}">${(groupIdToName[h.groupId!?c!])!'—'}</td>
+                        <td class="px-3 py-3 max-w-[12rem] text-slate-600 font-mono text-xs"><span class="block truncate" title="${(h.hostname!'')?html}:${h.port!22}">${h.hostname!''}:${h.port!22}</span></td>
+                        <td class="px-2 py-3 whitespace-nowrap"><span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase ${((h.authType!'password') == 'privateKey')?then('bg-blue-100 text-blue-700 border border-blue-200','bg-slate-100 text-slate-600 border border-slate-200')}">${h.authType!'password'}</span></td>
+                        <td class="px-2 py-3 whitespace-nowrap">
+                            <#if (h.status!1) != 1>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-100 text-amber-700 border border-amber-200">禁用</span>
+                            <#else>
+                                <#if status?? && status.online>
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-emerald-100 text-emerald-700 border border-emerald-200">在线</span>
+                                <#else>
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-100 text-slate-500 border border-slate-200">离线</span>
+                                </#if>
+                            </#if>
+                        </td>
+                        <td class="px-2 py-3 text-xs whitespace-nowrap">
+                            <#if status?? && status.online>
+                                <#if status.cpuUsage??><#assign cpuCl = (status.cpuUsage >= 90)?then('text-rose-600', (status.cpuUsage >= 70)?then('text-amber-600', 'text-emerald-600'))><span class="font-medium ${cpuCl}">${status.cpuUsage?string('0.00')}%</span></#if>
+                                <#if status.cpuCores?? && (status.cpuCores!0) gt 0><span class="text-slate-400">(${status.cpuCores}核)</span></#if>
+                                <#if !status.cpuUsage?? && !(status.cpuCores?? && (status.cpuCores!0) gt 0)>—</#if>
+                            <#else>—</#if>
+                        </td>
+                        <td class="px-2 py-3 text-xs whitespace-nowrap">
+                            <#if status?? && status.online && status.memUsagePercent??>
+                                <#assign memCl = (status.memUsagePercent >= 90)?then('text-rose-600', (status.memUsagePercent >= 70)?then('text-amber-600', 'text-emerald-600'))><span class="font-medium ${memCl}">${status.memUsagePercent?string('0.0')}%</span><span class="text-slate-400"> ${status.memUsedFormatted!''}/${status.memTotalFormatted!''}</span>
+                            <#else>—</#if>
+                        </td>
+                        <td class="px-2 py-3 text-xs whitespace-nowrap">
+                            <#if status?? && status.online>
+                                <#if status.diskUsagePercent??><#assign diskCl = (status.diskUsagePercent >= 90)?then('text-rose-600', (status.diskUsagePercent >= 70)?then('text-amber-600', 'text-emerald-600'))><span class="font-medium ${diskCl}">${status.diskUsagePercent}%</span></#if>
+                                <#if (status.diskUsedFormatted?? && status.diskUsedFormatted?has_content) || (status.diskTotalFormatted?? && status.diskTotalFormatted?has_content)><span class="text-slate-400"> ${status.diskUsedFormatted!''}/${status.diskTotalFormatted!''}</span></#if>
+                                <#if !status.diskUsagePercent?? && !(status.diskUsedFormatted?? && status.diskUsedFormatted?has_content) && !(status.diskTotalFormatted?? && status.diskTotalFormatted?has_content)>—</#if>
+                            <#else>—</#if>
+                        </td>
+                        <td class="px-2 py-3 text-xs whitespace-nowrap">
+                            <#assign ruleCount = (hostIdToRuleCount!{})[h.id?c!]!0>
+                            <button type="button" class="js-open-rules-modal text-blue-600 hover:underline border-0 bg-transparent cursor-pointer p-0" data-host-id="${h.id!}" data-host-name="${(h.name!)?html}">${ruleCount} 条规则</button>
+                        </td>
+                        <td class="px-3 py-3 text-right whitespace-nowrap">
+                            <div class="host-action-wrap inline-block relative">
+                                <button type="button" class="host-action-btn px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm rounded-lg transition inline-flex items-center gap-1 cursor-pointer border-0">
+                                    操作 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                                </button>
+                                <div class="host-action-menu fixed py-1 min-w-[8rem] rounded-lg bg-white border border-slate-200 shadow-xl z-[200]" style="display: none; position: fixed;">
+                                    <button type="button" class="js-refresh flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 rounded-t-lg border-0 bg-transparent cursor-pointer" data-host-id="${h.id!}"><svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>刷新</button>
+                                    <button type="button" class="js-open-terminal flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 border-0 bg-transparent cursor-pointer" data-host-id="${h.id!}" data-host-name="${h.name!''}"><svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>终端</button>
+                                    <button type="button" class="js-copy-host flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 border-0 bg-transparent cursor-pointer" data-host-id="${h.id!}"><svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>复制</button>
+                                    <button type="button" class="js-open-host-modal flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 border-0 bg-transparent cursor-pointer" data-host-id="${h.id!}"><svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>编辑</button>
+                                    <#if (h.status!1) == 1>
+                                    <button type="button" class="js-toggle-status flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-amber-600 hover:bg-amber-50 border-0 bg-transparent cursor-pointer" data-host-id="${h.id!}" data-action="disable"><svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>禁用</button>
+                                    <#else>
+                                    <button type="button" class="js-toggle-status flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-emerald-600 hover:bg-emerald-50 border-0 bg-transparent cursor-pointer" data-host-id="${h.id!}" data-action="enable"><svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>启用</button>
+                                    </#if>
+                                    <form method="post" action="/host/delete" class="block w-full">
+                                        <input type="hidden" name="id" value="${h.id!}">
+                                        <button type="button" class="js-confirm-submit flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-b-lg border-0 bg-transparent cursor-pointer" data-confirm="确定删除？"><svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>删除</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                    </#list>
+                </tbody>
+            </table>
+        </div>
+        <#if (totalPages!1) gt 1>
+        <div class="flex items-center justify-between px-6 py-4 border-t border-slate-200 text-sm text-slate-600">
+            <span>共 ${total!0} 台，每页 ${size!20} 条</span>
+            <div class="flex items-center gap-2">
+                <#assign currentPage = page!1>
+                <#assign totalP = totalPages!1>
+                <#assign sz = size!20>
+                <#assign qs = (q!)?has_content?then('&q=' + q?url, '') + (groupId??)?then('&groupId=' + groupId?c, '') + (statusFilter??)?then('&statusFilter=' + statusFilter?c, '') + (onlineFilter??)?then('&onlineFilter=' + onlineFilter?c, '')>
+                <#if currentPage gt 1>
+                <a href="/host?page=1&size=${sz}${qs}" class="px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-50 transition">首页</a>
+                <a href="/host?page=${currentPage - 1}&size=${sz}${qs}" class="px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-50 transition">上一页</a>
+                </#if>
+                <span class="px-3 py-1.5">第 ${currentPage} / ${totalP} 页</span>
+                <#if currentPage lt totalP>
+                <a href="/host?page=${currentPage + 1}&size=${sz}${qs}" class="px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-50 transition">下一页</a>
+                <a href="/host?page=${totalP}&size=${sz}${qs}" class="px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-50 transition">末页</a>
+                </#if>
+            </div>
+        </div>
+        </#if>
+    </div>
+
+    <input type="hidden" id="hostListQ" value="${(q!'')?html}">
+    <div id="hostModalOverlay" class="fixed inset-0 bg-black/50 z-[300] hidden items-center justify-center" style="display: none;">
+        <div id="hostModal" class="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto mx-4">
+            <div id="hostModalBody" class="p-6"></div>
+        </div>
+    </div>
+    <div id="importModalOverlay" class="fixed inset-0 bg-black/50 z-[300] hidden items-center justify-center" style="display: none;">
+        <div id="importModal" class="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto mx-4">
+            <div class="p-6">
+                <h2 class="text-lg font-semibold text-slate-800 mb-4">从 JumpServer 导入主机</h2>
+                <p class="text-sm text-slate-500 mb-3">上传 <strong>JumpServer 资产列表</strong>导出的 CSV 文件，表头需包含「主机名」「IP」「协议组」「激活」等。激活为 FALSE 的资产将跳过。</p>
+                <form id="importForm" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">选择 CSV 文件</label>
+                        <input type="file" name="file" id="importFile" accept=".csv,text/csv" class="w-full text-sm text-slate-600 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">或粘贴 CSV 内容</label>
+                        <textarea name="content" id="importContent" rows="6" placeholder="主机名,IP,协议组,激活,备注&#10;172.16.0.11,172.16.0.11,['ssh/22'],TRUE,测试资产" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm font-mono"></textarea>
+                    </div>
+                    <div id="importResult" class="hidden text-sm"></div>
+                    <div class="flex gap-3 pt-2">
+                        <button type="submit" id="importSubmitBtn" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition">导入</button>
+                        <button type="button" class="js-close-import-modal px-4 py-2 text-slate-600 hover:text-slate-800 transition">取消</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div id="rulesModalOverlay" class="fixed inset-0 bg-black/50 z-[300] hidden items-center justify-center" style="display: none;">
+        <div id="rulesModal" class="bg-white rounded-xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto mx-4">
+            <div id="rulesModalBody" class="p-6"></div>
+        </div>
+    </div>
+    <div id="batchSetGroupModalOverlay" class="fixed inset-0 bg-black/50 z-[300] hidden items-center justify-center" style="display: none;">
+        <div id="batchSetGroupModal" class="bg-white rounded-xl shadow-xl max-w-sm w-full mx-4">
+            <div class="p-6">
+                <h2 class="text-lg font-semibold text-slate-800 mb-4">批量设置分组</h2>
+                <form id="batchSetGroupForm" method="post" action="/host/batch-set-group" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">选择分组</label>
+                        <select name="groupId" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white">
+                            <option value="">无分组</option>
+                            <#list groups! as g>
+                            <option value="${g.id!}">${(g.name!)?html}</option>
+                            </#list>
+                        </select>
+                    </div>
+                    <div class="flex gap-3 pt-2">
+                        <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition">确定</button>
+                        <button type="button" class="js-close-batch-set-group px-4 py-2 text-slate-600 hover:text-slate-800 transition">取消</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div id="batchRulesModalOverlay" class="fixed inset-0 bg-black/50 z-[300] hidden items-center justify-center" style="display: none;">
+        <div id="batchRulesModal" class="bg-white rounded-xl shadow-xl max-w-sm w-full max-h-[85vh] overflow-hidden mx-4 flex flex-col">
+            <div class="p-6 flex-1 overflow-y-auto">
+                <h2 class="text-lg font-semibold text-slate-800 mb-2">批量设置监控规则</h2>
+                <p class="text-sm text-slate-500 mb-3">勾选要应用到所选主机的告警规则</p>
+                <form id="batchSetRulesForm" method="post" action="/host/batch-set-rules" class="space-y-3">
+                    <div class="border border-slate-300 rounded-lg p-3 max-h-56 overflow-y-auto bg-slate-50/50 space-y-1.5">
+                        <#list alertRules! as rule>
+                        <label class="flex items-center gap-2 py-1 cursor-pointer hover:bg-slate-100 rounded px-1 -mx-1">
+                            <input type="checkbox" name="ruleIds" value="${rule.id!}" class="rounded border-slate-300 text-blue-600 focus:ring-blue-500">
+                            <span class="text-sm text-slate-800">${(rule.name!)?html}</span>
+                            <span class="text-xs text-slate-500">${rule.metricKey!} ${(rule.operator!'gte')?html} ${(rule.threshold!0)?string('0.##')}%</span>
+                        </label>
+                        </#list>
+                        <#if !alertRules?? || alertRules?size == 0>
+                        <p class="text-xs text-slate-500">暂无告警规则，请先在<a href="/alert" class="text-blue-600 hover:underline">告警规则</a>中新增。</p>
+                        </#if>
+                    </div>
+                    <div class="flex gap-3 pt-2">
+                        <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition">确定</button>
+                        <button type="button" class="js-close-batch-rules px-4 py-2 text-slate-600 hover:text-slate-800 transition">取消</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div id="batchAuthModalOverlay" class="fixed inset-0 bg-black/50 z-[300] hidden items-center justify-center" style="display: none;">
+        <div id="batchAuthModal" class="bg-white rounded-xl shadow-xl max-w-sm w-full mx-4">
+            <div class="p-6">
+                <h2 class="text-lg font-semibold text-slate-800 mb-4">批量设置认证方式</h2>
+                <form id="batchSetAuthForm" method="post" action="/host/batch-set-auth" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">认证方式</label>
+                        <div class="space-y-2">
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="authType" value="password" class="rounded-full border-slate-300 text-blue-600 focus:ring-blue-500" checked> 密码</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="authType" value="privateKey" class="rounded-full border-slate-300 text-blue-600 focus:ring-blue-500"> 私钥</label>
+                        </div>
+                    </div>
+                    <div id="batchAuthPasswordWrap">
+                        <label class="block text-sm font-medium text-slate-700 mb-1">密码</label>
+                        <input type="password" name="password" autocomplete="new-password" placeholder="选填，不填则仅切换认证方式不修改密码" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-blue-500 bg-white">
+                    </div>
+                    <div id="batchAuthSshKeyWrap" class="hidden">
+                        <label class="block text-sm font-medium text-slate-700 mb-1">私钥</label>
+                        <select name="sshKeyId" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-800 focus:ring-2 focus:ring-blue-500 bg-white">
+                            <#list sshKeys! as sk>
+                            <option value="${sk.id!}">${(sk.name!)?html}</option>
+                            </#list>
+                        </select>
+                    </div>
+                    <div class="flex gap-3 pt-2">
+                        <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition">确定</button>
+                        <button type="button" class="js-close-batch-auth px-4 py-2 text-slate-600 hover:text-slate-800 transition">取消</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <script>
+        (function() {
+            var overlay = document.getElementById('hostModalOverlay');
+            var modalBody = document.getElementById('hostModalBody');
+            var rulesOverlay = document.getElementById('rulesModalOverlay');
+            var rulesModalBody = document.getElementById('rulesModalBody');
+            var currentRulesHostId = null;
+            var currentPage = ${page!1};
+            var currentSize = ${size!20};
+            var currentQ = (document.getElementById('hostListQ') && document.getElementById('hostListQ').value) || '';
+
+            function openHostModal(hostId, copyId) {
+                var qs = copyId ? '?copyId=' + encodeURIComponent(copyId) : (hostId ? '?id=' + encodeURIComponent(hostId) : '');
+                var url = '/host/form' + qs;
+                overlay.classList.remove('hidden');
+                overlay.style.display = 'flex';
+                modalBody.innerHTML = '<div class="text-center py-8 text-slate-500">加载中…</div>';
+                fetch(url, { credentials: 'same-origin' })
+                    .then(function(r) { return r.text(); })
+                    .then(function(html) {
+                        modalBody.innerHTML = html;
+                        initHostFormInModal(modalBody);
+                        var form = document.getElementById('hostFormModal');
+                        var closeBtn = modalBody.querySelector('.js-modal-close');
+                        if (closeBtn) closeBtn.addEventListener('click', closeHostModal);
+                        overlay.onclick = function(e) { if (e.target === overlay) closeHostModal(); };
+                        if (form) {
+                            form.addEventListener('submit', function(e) {
+                                e.preventDefault();
+                                var submitBtn = form.querySelector('button[type="submit"]');
+                                if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = '保存中…'; }
+                                var params = new URLSearchParams();
+                                var i, el;
+                                for (i = 0; i < form.elements.length; i++) {
+                                    el = form.elements[i];
+                                    if (el.name && !el.disabled) {
+                                        if (el.type === 'checkbox') { if (el.checked) params.append(el.name, el.value); }
+                                        else params.append(el.name, el.value);
+                                    }
+                                }
+                                fetch('/host/save', {
+                                    method: 'POST',
+                                    credentials: 'same-origin',
+                                    headers: { 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/x-www-form-urlencoded' },
+                                    body: params.toString()
+                                }).then(function(res) {
+                                    if (res.ok) return res.json();
+                                    throw new Error('保存失败');
+                                }).then(function(data) {
+                                    if (data && data.success) {
+                                        closeHostModal();
+                                        if (typeof toast === 'function') toast('保存成功', 'success');
+                                        window.location.href = '/host?page=' + currentPage + '&size=' + currentSize + (currentQ ? '&q=' + encodeURIComponent(currentQ) : '');
+                                    } else throw new Error('保存失败');
+                                }).catch(function() {
+                                    if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = '保存'; }
+                                    toast('保存失败', 'error');
+                                });
+                            });
+                        }
+                    })
+                    .catch(function() {
+                        modalBody.innerHTML = '<div class="text-center py-8 text-red-600">加载失败</div>';
+                        if (typeof toast === 'function') toast('加载失败', 'error');
+                    });
+            }
+            function closeHostModal() {
+                overlay.classList.add('hidden');
+                overlay.style.display = 'none';
+            }
+            function openRulesModal(hostId) {
+                if (!hostId) return;
+                currentRulesHostId = hostId;
+                rulesOverlay.classList.remove('hidden');
+                rulesOverlay.style.display = 'flex';
+                rulesModalBody.innerHTML = '<div class="text-center py-8 text-slate-500">加载中…</div>';
+                fetch('/host/rules-form?hostId=' + encodeURIComponent(hostId), { credentials: 'same-origin' })
+                    .then(function(r) { return r.text(); })
+                    .then(function(html) {
+                        rulesModalBody.innerHTML = html;
+                        var form = document.getElementById('hostRulesFormModal');
+                        var closeBtn = rulesModalBody.querySelector('.js-close-rules-modal');
+                        if (closeBtn) closeBtn.addEventListener('click', closeRulesModal);
+                        rulesOverlay.onclick = function(e) { if (e.target === rulesOverlay) closeRulesModal(); };
+                        if (form) {
+                            form.addEventListener('submit', function(e) {
+                                e.preventDefault();
+                                var submitBtn = form.querySelector('button[type="submit"]');
+                                if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = '保存中…'; }
+                                var params = new URLSearchParams();
+                                params.append('hostId', hostId);
+                                var i, el;
+                                for (i = 0; i < form.elements.length; i++) {
+                                    el = form.elements[i];
+                                    if (el.name === 'ruleIds' && el.type === 'checkbox' && el.checked) params.append('ruleIds', el.value);
+                                }
+                                fetch('/host/save-rules', {
+                                    method: 'POST',
+                                    credentials: 'same-origin',
+                                    headers: { 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/x-www-form-urlencoded' },
+                                    body: params.toString()
+                                }).then(function(res) { return res.json().catch(function() { return {}; }); }).then(function(data) {
+                                    if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = '保存'; }
+                                    if (data && data.success) {
+                                        closeRulesModal();
+                                        if (typeof toast === 'function') toast('保存成功', 'success');
+                                        window.location.reload();
+                                    } else {
+                                        if (typeof toast === 'function') toast(data.message || '保存失败', 'error');
+                                    }
+                                }).catch(function() {
+                                    if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = '保存'; }
+                                    if (typeof toast === 'function') toast('保存失败', 'error');
+                                });
+                            });
+                        }
+                    })
+                    .catch(function() {
+                        rulesModalBody.innerHTML = '<div class="text-center py-8 text-red-600">加载失败</div>';
+                    });
+            }
+            function closeRulesModal() {
+                rulesOverlay.classList.add('hidden');
+                rulesOverlay.style.display = 'none';
+                currentRulesHostId = null;
+            }
+            function initHostFormInModal(container) {
+                var authType = container.querySelector('#authTypeModal');
+                var wrapPassword = container.querySelector('#wrapPasswordModal');
+                var wrapPrivateKey = container.querySelector('#wrapPrivateKeyModal');
+                var sshKeyId = container.querySelector('#sshKeyIdModal');
+                var wrapCustomKey = container.querySelector('#wrapCustomKeyModal');
+                var credentialPassword = container.querySelector('#credentialPasswordModal');
+                var credentialKey = container.querySelector('#credentialKeyModal');
+                if (!authType) return;
+                function toggleCredential() {
+                    var isPrivate = authType.value === 'privateKey';
+                    wrapPassword.classList.toggle('hidden', isPrivate);
+                    wrapPrivateKey.classList.toggle('hidden', !isPrivate);
+                    if (isPrivate) {
+                        credentialPassword.disabled = true;
+                        credentialPassword.removeAttribute('name');
+                        credentialKey.disabled = sshKeyId.value !== '';
+                        if (sshKeyId.value !== '') credentialKey.removeAttribute('name'); else credentialKey.setAttribute('name', 'credential');
+                    } else {
+                        credentialPassword.disabled = false;
+                        credentialPassword.setAttribute('name', 'password');
+                        credentialKey.disabled = true;
+                        credentialKey.removeAttribute('name');
+                    }
+                }
+                function toggleCustomKey() {
+                    var isCustom = sshKeyId.value === '';
+                    wrapCustomKey.classList.toggle('hidden', !isCustom);
+                    credentialKey.disabled = !isCustom;
+                    if (isCustom) credentialKey.setAttribute('name', 'credential'); else credentialKey.removeAttribute('name');
+                }
+                authType.addEventListener('change', toggleCredential);
+                sshKeyId.addEventListener('change', toggleCustomKey);
+                toggleCredential();
+                toggleCustomKey();
+            }
+            document.addEventListener('click', function(e) {
+                var btn = e.target.closest('.js-open-host-modal');
+                if (btn) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    var id = btn.getAttribute('data-host-id');
+                    openHostModal(id || null, null);
+                    return;
+                }
+                var copyBtn = e.target.closest('.js-copy-host');
+                if (copyBtn) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    var copyId = copyBtn.getAttribute('data-host-id');
+                    if (copyId) openHostModal(null, copyId);
+                    return;
+                }
+                var rulesBtn = e.target.closest('.js-open-rules-modal');
+                if (rulesBtn) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    var hostId = rulesBtn.getAttribute('data-host-id');
+                    if (hostId) openRulesModal(hostId);
+                    return;
+                }
+                if (e.target.closest('.js-open-import-modal')) {
+                    e.preventDefault();
+                    var impOverlay = document.getElementById('importModalOverlay');
+                    if (impOverlay) {
+                        impOverlay.classList.remove('hidden');
+                        impOverlay.style.display = 'flex';
+                        document.getElementById('importResult').classList.add('hidden');
+                        document.getElementById('importContent').value = '';
+                        document.getElementById('importFile').value = '';
+                    }
+                    return;
+                }
+                if (e.target.closest('.js-close-import-modal') || e.target.id === 'importModalOverlay') {
+                    var impOverlay = document.getElementById('importModalOverlay');
+                    if (impOverlay) { impOverlay.classList.add('hidden'); impOverlay.style.display = 'none'; }
+                    return;
+                }
+                if (e.target.closest('.js-close-batch-set-group') || e.target.id === 'batchSetGroupModalOverlay') {
+                    closeBatchSetGroupModal();
+                    return;
+                }
+                if (e.target.closest('.js-close-batch-rules') || e.target.id === 'batchRulesModalOverlay') {
+                    closeBatchRulesModal();
+                    return;
+                }
+                if (e.target.closest('.js-close-batch-auth') || e.target.id === 'batchAuthModalOverlay') {
+                    closeBatchAuthModal();
+                    return;
+                }
+                var termBtn = e.target.closest('.js-open-terminal');
+                if (termBtn) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    document.querySelectorAll('.host-action-menu').forEach(function(m) { m.style.display = 'none'; });
+                    var hostId = termBtn.getAttribute('data-host-id');
+                    var hostName = termBtn.getAttribute('data-host-name') || '';
+                    if (hostId && typeof window.openTerminalModal === 'function') window.openTerminalModal(hostId, hostName);
+                }
+            });
+
+            function getCheckedHostIds() {
+                var ids = [];
+                document.querySelectorAll('.js-host-cb:checked').forEach(function(cb) { ids.push(cb.value); });
+                return ids;
+            }
+            function updateBatchDeleteState() {
+                var allCb = document.querySelectorAll('.js-host-cb');
+                var checked = document.querySelectorAll('.js-host-cb:checked');
+                var batchOpWrap = document.getElementById('batchOpWrap');
+                var selectAll = document.getElementById('hostSelectAll');
+                if (batchOpWrap) batchOpWrap.classList.toggle('hidden', checked.length === 0);
+                if (selectAll && allCb.length > 0) selectAll.checked = checked.length === allCb.length;
+            }
+            function closeBatchOpMenu() {
+                var menu = document.getElementById('batchOpMenu');
+                if (menu) menu.style.display = 'none';
+            }
+            function initBatchDelete() {
+                var selectAll = document.getElementById('hostSelectAll');
+                if (selectAll) selectAll.addEventListener('change', function() {
+                    document.querySelectorAll('.js-host-cb').forEach(function(cb) { cb.checked = selectAll.checked; });
+                    updateBatchDeleteState();
+                });
+                document.querySelectorAll('.js-host-cb').forEach(function(cb) {
+                    cb.addEventListener('change', updateBatchDeleteState);
+                });
+                var batchOpTrigger = document.getElementById('batchOpTrigger');
+                var batchOpMenu = document.getElementById('batchOpMenu');
+                if (batchOpTrigger && batchOpMenu) {
+                    batchOpTrigger.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        var isOpen = batchOpMenu.style.display === 'block';
+                        closeBatchOpMenu();
+                        if (!isOpen) {
+                            var r = batchOpTrigger.getBoundingClientRect();
+                            batchOpMenu.style.left = r.left + 'px';
+                            batchOpMenu.style.top = (r.bottom + 4) + 'px';
+                            batchOpMenu.style.display = 'block';
+                        }
+                    });
+                }
+                document.addEventListener('click', function() { closeBatchOpMenu(); });
+                document.querySelector('.js-batch-set-group') && document.querySelector('.js-batch-set-group').addEventListener('click', function() {
+                    if (getCheckedHostIds().length === 0) return;
+                    closeBatchOpMenu();
+                    openBatchSetGroupModal();
+                });
+                document.querySelector('.js-batch-set-rules') && document.querySelector('.js-batch-set-rules').addEventListener('click', function() {
+                    if (getCheckedHostIds().length === 0) return;
+                    closeBatchOpMenu();
+                    openBatchRulesModal();
+                });
+                document.querySelector('.js-batch-set-auth') && document.querySelector('.js-batch-set-auth').addEventListener('click', function() {
+                    if (getCheckedHostIds().length === 0) return;
+                    closeBatchOpMenu();
+                    openBatchAuthModal();
+                });
+                document.querySelector('.js-batch-delete') && document.querySelector('.js-batch-delete').addEventListener('click', function() {
+                    var ids = getCheckedHostIds();
+                    if (ids.length === 0) return;
+                    closeBatchOpMenu();
+                    if (typeof window.confirmModal !== 'function') {
+                        if (confirm('确定删除选中的 ' + ids.length + ' 台主机？')) submitBatchDelete(ids);
+                        return;
+                    }
+                    window.confirmModal('确定删除选中的 ' + ids.length + ' 台主机？', function(ok) { if (ok) submitBatchDelete(ids); });
+                });
+                var batchSetGroupForm = document.getElementById('batchSetGroupForm');
+                if (batchSetGroupForm) batchSetGroupForm.addEventListener('submit', function() {
+                    var ids = getCheckedHostIds();
+                    batchSetGroupForm.querySelectorAll('input[name="ids"]').forEach(function(el) { el.remove(); });
+                    ids.forEach(function(id) {
+                        var input = document.createElement('input');
+                        input.type = 'hidden';
+                        input.name = 'ids';
+                        input.value = id;
+                        batchSetGroupForm.appendChild(input);
+                    });
+                });
+                var batchSetRulesForm = document.getElementById('batchSetRulesForm');
+                if (batchSetRulesForm) batchSetRulesForm.addEventListener('submit', function() {
+                    var ids = getCheckedHostIds();
+                    batchSetRulesForm.querySelectorAll('input[name="ids"]').forEach(function(el) { el.remove(); });
+                    ids.forEach(function(id) {
+                        var input = document.createElement('input');
+                        input.type = 'hidden';
+                        input.name = 'ids';
+                        input.value = id;
+                        batchSetRulesForm.appendChild(input);
+                    });
+                });
+                var batchSetAuthForm = document.getElementById('batchSetAuthForm');
+                if (batchSetAuthForm) batchSetAuthForm.addEventListener('submit', function() {
+                    var ids = getCheckedHostIds();
+                    batchSetAuthForm.querySelectorAll('input[name="ids"]').forEach(function(el) { el.remove(); });
+                    ids.forEach(function(id) {
+                        var input = document.createElement('input');
+                        input.type = 'hidden';
+                        input.name = 'ids';
+                        input.value = id;
+                        batchSetAuthForm.appendChild(input);
+                    });
+                });
+                batchSetAuthForm && batchSetAuthForm.querySelectorAll('input[name="authType"]').forEach(function(radio) {
+                    radio.addEventListener('change', function() {
+                        var isPwd = this.value === 'password';
+                        var pwWrap = document.getElementById('batchAuthPasswordWrap');
+                        var skWrap = document.getElementById('batchAuthSshKeyWrap');
+                        if (pwWrap) pwWrap.classList.toggle('hidden', !isPwd);
+                        if (skWrap) skWrap.classList.toggle('hidden', isPwd);
+                    });
+                });
+                updateBatchDeleteState();
+            }
+            function openBatchSetGroupModal() {
+                var overlay = document.getElementById('batchSetGroupModalOverlay');
+                if (overlay) { overlay.classList.remove('hidden'); overlay.style.display = 'flex'; }
+            }
+            function closeBatchSetGroupModal() {
+                var overlay = document.getElementById('batchSetGroupModalOverlay');
+                if (overlay) { overlay.classList.add('hidden'); overlay.style.display = 'none'; }
+            }
+            function openBatchRulesModal() {
+                var overlay = document.getElementById('batchRulesModalOverlay');
+                if (overlay) { overlay.classList.remove('hidden'); overlay.style.display = 'flex'; }
+            }
+            function closeBatchRulesModal() {
+                var overlay = document.getElementById('batchRulesModalOverlay');
+                if (overlay) { overlay.classList.add('hidden'); overlay.style.display = 'none'; }
+            }
+            function openBatchAuthModal() {
+                var pwWrap = document.getElementById('batchAuthPasswordWrap');
+                var skWrap = document.getElementById('batchAuthSshKeyWrap');
+                var authPrivate = document.querySelector('#batchSetAuthForm input[name="authType"][value="privateKey"]');
+                var isPwd = !authPrivate || !authPrivate.checked;
+                if (pwWrap) pwWrap.classList.toggle('hidden', !isPwd);
+                if (skWrap) skWrap.classList.toggle('hidden', isPwd);
+                var overlay = document.getElementById('batchAuthModalOverlay');
+                if (overlay) { overlay.classList.remove('hidden'); overlay.style.display = 'flex'; }
+            }
+            function closeBatchAuthModal() {
+                var overlay = document.getElementById('batchAuthModalOverlay');
+                if (overlay) { overlay.classList.add('hidden'); overlay.style.display = 'none'; }
+            }
+            function submitBatchDelete(ids) {
+                var params = new URLSearchParams();
+                ids.forEach(function(id) { params.append('ids', id); });
+                var form = document.createElement('form');
+                form.method = 'POST';
+                form.action = '/host/batch-delete';
+                form.style.display = 'none';
+                params.forEach(function(v, k) {
+                    var input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = k;
+                    input.value = v;
+                    form.appendChild(input);
+                });
+                document.body.appendChild(form);
+                form.submit();
+            }
+
+            function initHostActions() {
+                document.querySelectorAll('.host-action-btn').forEach(function(btn) {
+                    var wrap = btn.closest('.host-action-wrap');
+                    var menu = wrap ? wrap.querySelector('.host-action-menu') : null;
+                    if (!menu) return;
+                    btn.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        var isOpen = menu.style.display === 'block';
+                        document.querySelectorAll('.host-action-menu').forEach(function(m) { m.style.display = 'none'; });
+                        if (!isOpen) {
+                            var r = btn.getBoundingClientRect();
+                            menu.style.left = r.left + 'px';
+                            menu.style.top = (r.bottom + 4) + 'px';
+                            menu.style.display = 'block';
+                        }
+                    });
+                });
+                document.addEventListener('click', function() {
+                    document.querySelectorAll('.host-action-menu').forEach(function(m) { m.style.display = 'none'; });
+                });
+                document.querySelectorAll('.js-refresh').forEach(function(btn) {
+                    btn.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        var hostId = btn.getAttribute('data-host-id');
+                        if (!hostId) return;
+                        var label = btn.textContent;
+                        btn.disabled = true;
+                        btn.textContent = '采集中…';
+                        fetch('/host/refresh?hostId=' + encodeURIComponent(hostId) + '&ajax=1', { credentials: 'same-origin' })
+                            .then(function(res) {
+                                if (res.ok) {
+                                    return res.json().then(function(data) {
+                                        if (data && data.success) {
+                                            return;
+                                        }
+                                        btn.disabled = false;
+                                        btn.textContent = label;
+                                        toast('刷新失败', 'error');
+                                    });
+                                }
+                                return res.json().catch(function() { return {}; }).then(function(data) {
+                                    btn.disabled = false;
+                                    btn.textContent = label;
+                                    toast(data.message || '刷新失败', 'error');
+                                });
+                            })
+                            .catch(function() {
+                                btn.disabled = false;
+                                btn.textContent = label;
+                                toast('网络错误', 'error');
+                            });
+                    });
+                });
+                document.querySelectorAll('.js-toggle-status').forEach(function(btn) {
+                    btn.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        var hostId = btn.getAttribute('data-host-id');
+                        if (!hostId) return;
+                        document.querySelectorAll('.host-action-menu').forEach(function(m) { m.style.display = 'none'; });
+                        var fd = new FormData();
+                        fd.append('id', hostId);
+                        fetch('/host/toggle-status', { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                            .then(function(res) { return res.json().then(function(data) { return { ok: res.ok, data: data }; }); })
+                            .then(function(r) {
+                                if (r.ok && r.data && r.data.success) {
+                                    toast(r.data.status === 1 ? '已启用' : '已禁用', 'success');
+                                    window.location.reload();
+                                } else {
+                                    toast(r.data && r.data.message ? r.data.message : '操作失败', 'error');
+                                }
+                            })
+                            .catch(function() { toast('网络错误', 'error'); });
+                    });
+                });
+            }
+            function initImportForm() {
+                var form = document.getElementById('importForm');
+                var resultEl = document.getElementById('importResult');
+                var submitBtn = document.getElementById('importSubmitBtn');
+                if (!form) return;
+                form.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    var fileInput = document.getElementById('importFile');
+                    var contentInput = document.getElementById('importContent');
+                    var fd = new FormData();
+                    if (fileInput.files && fileInput.files.length > 0) {
+                        fd.append('file', fileInput.files[0]);
+                    } else {
+                        fd.append('content', contentInput.value || '');
+                    }
+                    resultEl.classList.remove('hidden');
+                    resultEl.className = 'text-sm text-slate-500';
+                    resultEl.textContent = '导入中…';
+                    if (submitBtn) submitBtn.disabled = true;
+                    fetch('/host/import', {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        body: fd
+                    }).then(function(res) { return res.json(); }).then(function(data) {
+                        if (submitBtn) submitBtn.disabled = false;
+                        var imported = data.imported != null ? data.imported : 0;
+                        var failed = data.failed != null ? data.failed : 0;
+                        var errors = data.errors || [];
+                        var msg = data.message && data.message.length > 0 ? data.message : ('成功导入 ' + imported + ' 台');
+                        if (!data.message && imported > 0) {
+                            if (failed > 0) msg += '，失败 ' + failed + ' 条';
+                            if (errors.length > 0) {
+                                msg += '。失败原因：' + errors.slice(0, 5).map(function(x) { return '第' + x.row + '行 ' + (x.message || ''); }).join('；');
+                                if (errors.length > 5) msg += '…';
+                            }
+                        } else if (!data.message && imported === 0 && errors.length > 0) {
+                            msg += '。' + errors.slice(0, 5).map(function(x) { return '第' + x.row + '行 ' + (x.message || ''); }).join('；');
+                        }
+                        resultEl.textContent = msg;
+                        resultEl.className = 'text-sm ' + (data.success && imported > 0 ? 'text-emerald-600' : (data.message || failed > 0) ? 'text-amber-600' : 'text-slate-500');
+                        if (data.success && imported > 0) {
+                            if (typeof toast === 'function') toast('导入成功', 'success');
+                            setTimeout(function() {
+                                document.getElementById('importModalOverlay').classList.add('hidden');
+                                document.getElementById('importModalOverlay').style.display = 'none';
+                                window.location.reload();
+                            }, 1500);
+                        }
+                    }).catch(function() {
+                        if (submitBtn) submitBtn.disabled = false;
+                        resultEl.textContent = '网络错误';
+                        resultEl.className = 'text-sm text-rose-600';
+                    });
+                });
+            }
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', function() { initHostActions(); initBatchDelete(); initImportForm(); });
+            } else {
+                initHostActions();
+                initBatchDelete();
+                initImportForm();
+            }
+        })();
+    </script>
+</@layout.main>

@@ -1,0 +1,152 @@
+<#import "../layout.html" as layout>
+<@layout.main title="私钥管理" nav="sshkey">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <form method="get" action="/sshkey" class="flex gap-2 flex-1 sm:max-w-xs">
+            <input type="search" name="q" value="${(q!)?html}" placeholder="搜索名称或备注" class="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition border-0 cursor-pointer">搜索</button>
+        </form>
+        <div class="flex gap-2 shrink-0">
+            <a href="/sshkey/edit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg shadow shadow-blue-500/30 transition border-0 cursor-pointer">新增私钥</a>
+        </div>
+    </div>
+    <div class="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm">
+                <thead>
+                    <tr class="border-b border-slate-200 bg-slate-50">
+                        <th class="px-6 py-4 text-xs font-semibold text-slate-600 uppercase tracking-wider">名称</th>
+                        <th class="px-6 py-4 text-xs font-semibold text-slate-600 uppercase tracking-wider">备注</th>
+                        <th class="px-6 py-4 text-xs font-semibold text-slate-600 uppercase tracking-wider">关联主机</th>
+                        <th class="px-6 py-4 text-xs font-semibold text-slate-600 uppercase tracking-wider text-right">操作</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-200">
+                    <#list keys as k>
+                    <#assign keyHosts = ((hostsByKeyId!{})[k.id?c!])![]>
+                    <#assign deleteConfirmMsg = (keyHosts?size gt 0)?then('该私钥正被 '+keyHosts?size+' 台主机使用，删除后它们将无法登录。确定删除？', '确定删除？使用该私钥的主机将无法连接。')>
+                    <tr class="hover:bg-slate-50 transition-colors">
+                        <td class="px-6 py-4 text-slate-800 font-medium">${k.name!''}</td>
+                        <td class="px-6 py-4 text-slate-600 text-xs">${k.description!''}</td>
+                        <td class="px-6 py-4 text-slate-600 text-sm">
+                            <#if keyHosts?size gt 0>
+                                <button type="button" class="text-blue-600 hover:underline font-medium focus:outline-none" data-key-id="${k.id!}" data-key-name="${(k.name!)?html}" data-host-count="${keyHosts?size}" data-action="show-hosts">${keyHosts?size}</button>
+                            <#else>
+                                <span class="text-slate-400">0</span>
+                            </#if>
+                        </td>
+                        <td class="px-6 py-4 text-right whitespace-nowrap">
+                            <div class="list-action-wrap inline-block relative">
+                                <button type="button" class="list-action-btn px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm rounded-lg transition inline-flex items-center gap-1 cursor-pointer border-0">操作 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg></button>
+                                <div class="list-action-menu fixed py-1 min-w-[8rem] rounded-lg bg-white border border-slate-200 shadow-xl z-[200]" style="display: none; position: fixed;">
+                                    <a href="/sshkey/edit?id=${k.id!}" class="flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 rounded-t-lg no-underline"><svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>编辑</a>
+                                    <form method="post" action="/sshkey/delete" class="block w-full">
+                                        <input type="hidden" name="id" value="${k.id!}">
+                                        <button type="button" class="js-confirm-submit flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-b-lg border-0 bg-transparent cursor-pointer" data-confirm="${(deleteConfirmMsg!)?replace('"','&quot;')}"><svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>删除</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                    </#list>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="hostsModal" class="fixed inset-0 z-[300] hidden" aria-modal="true">
+        <div class="fixed inset-0 bg-black/50" data-action="close-hosts-modal"></div>
+        <div class="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg max-h-[80vh] flex flex-col bg-white rounded-xl shadow-xl border border-slate-200">
+            <div class="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+                <h3 class="text-lg font-semibold text-slate-800">关联主机 — <span id="hostsModalKeyName"></span></h3>
+                <button type="button" class="p-2 text-slate-400 hover:text-slate-600 rounded-lg transition" data-action="close-hosts-modal" aria-label="关闭">&times;</button>
+            </div>
+            <div class="flex-1 overflow-auto px-6 py-4">
+                <table class="w-full text-sm text-left">
+                    <thead><tr class="border-b border-slate-200 text-slate-600"><th class="py-2 pr-4">名称</th><th class="py-2">主机名 / IP</th><th class="py-2 w-16 text-right">操作</th></tr></thead>
+                    <tbody id="hostsModalBody"></tbody>
+                </table>
+                <p id="hostsModalEmpty" class="hidden text-slate-500 text-sm py-4">暂无主机</p>
+            </div>
+            <div class="px-6 py-3 border-t border-slate-200 flex items-center justify-between text-sm text-slate-600">
+                <span id="hostsModalSummary">共 0 条</span>
+                <div class="flex gap-2">
+                    <button type="button" id="hostsModalPrev" class="px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed" disabled>上一页</button>
+                    <button type="button" id="hostsModalNext" class="px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed" disabled>下一页</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+(function() {
+    var modal = document.getElementById('hostsModal');
+    var body = document.getElementById('hostsModalBody');
+    var empty = document.getElementById('hostsModalEmpty');
+    var keyNameEl = document.getElementById('hostsModalKeyName');
+    var summary = document.getElementById('hostsModalSummary');
+    var prevBtn = document.getElementById('hostsModalPrev');
+    var nextBtn = document.getElementById('hostsModalNext');
+    var currentKeyId = null;
+    var currentPage = 1;
+    var pageSize = 10;
+    var total = 0;
+
+    function showModal() { modal.classList.remove('hidden'); }
+    function hideModal() { modal.classList.add('hidden'); }
+
+    function renderHosts(data) {
+        var list = data.list || [];
+        total = data.total || 0;
+        var page = data.page || 1;
+        var size = data.size || pageSize;
+        var totalPages = size === 0 ? 1 : Math.ceil(total / size) || 1;
+
+        if (list.length === 0) {
+            body.innerHTML = '';
+            empty.classList.remove('hidden');
+        } else {
+            empty.classList.add('hidden');
+            body.innerHTML = list.map(function(h) {
+                var name = (h.name || '').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+                var hostname = (h.hostname || '').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+                return '<tr class="border-b border-slate-100"><td class="py-2 pr-4">' + name + '</td><td class="py-2 font-mono text-slate-600">' + hostname + '</td><td class="py-2 text-right"><a href="/host/edit?id=' + (h.id || '') + '" class="text-blue-600 hover:underline">编辑</a></td></tr>';
+            }).join('');
+        }
+
+        summary.textContent = '共 ' + total + ' 条';
+        prevBtn.disabled = page <= 1;
+        nextBtn.disabled = page >= totalPages;
+        currentPage = page;
+    }
+
+    function loadPage() {
+        if (!currentKeyId) return;
+        fetch('/sshkey/hosts?keyId=' + currentKeyId + '&page=' + currentPage + '&size=' + pageSize)
+            .then(function(r) { return r.json(); })
+            .then(function(data) { renderHosts(data); })
+            .catch(function() { body.innerHTML = '<tr><td colspan="3" class="py-4 text-red-500">加载失败</td></tr>'; empty.classList.add('hidden'); });
+    }
+
+    document.querySelectorAll('[data-action="show-hosts"]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            currentKeyId = this.getAttribute('data-key-id');
+            var keyName = this.getAttribute('data-key-name') || '';
+            keyNameEl.textContent = keyName;
+            currentPage = 1;
+            showModal();
+            loadPage();
+        });
+    });
+
+    document.querySelectorAll('[data-action="close-hosts-modal"]').forEach(function(el) {
+        el.addEventListener('click', hideModal);
+    });
+
+    prevBtn.addEventListener('click', function() { if (currentPage > 1) { currentPage--; loadPage(); } });
+    nextBtn.addEventListener('click', function() {
+        var size = pageSize;
+        if (total > 0 && currentPage < Math.ceil(total / size)) { currentPage++; loadPage(); }
+    });
+})();
+    </script>
+</@layout.main>

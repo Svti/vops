@@ -1,0 +1,141 @@
+<#import "../../layout.html" as layout>
+<@layout.main title="主机分组" nav="host">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <p class="text-sm text-slate-600">管理主机分组，在编辑主机时可选择所属分组。</p>
+        <div class="flex gap-2 shrink-0">
+            <a href="/host" class="px-4 py-2 bg-white border border-slate-300 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-50 transition cursor-pointer">返回主机管理</a>
+            <button type="button" class="js-open-group-modal px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg shadow shadow-blue-500/30 transition cursor-pointer border-0" data-group-id="">新增分组</button>
+        </div>
+    </div>
+    <#if message??>
+    <input type="hidden" id="groupListMessage" value="${(message!)?html}">
+    </#if>
+    <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+        <table class="w-full text-left text-sm">
+            <thead>
+                <tr class="border-b border-slate-200 bg-slate-50">
+                    <th class="px-4 py-3 text-xs font-semibold text-slate-600 uppercase">名称</th>
+                    <th class="px-4 py-3 text-xs font-semibold text-slate-600 uppercase">描述</th>
+                    <th class="px-4 py-3 text-xs font-semibold text-slate-600 uppercase">主机数</th>
+                    <th class="px-4 py-3 text-xs font-semibold text-slate-600 uppercase text-right">操作</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200">
+                <#list groups as g>
+                <#assign count = (groupIdToCount!{})[g.id?c!]!0>
+                <tr class="hover:bg-slate-50">
+                    <td class="px-4 py-3 font-medium text-slate-800">${(g.name!)?html}</td>
+                    <td class="px-4 py-3 text-slate-600 max-w-xs truncate" title="${(g.description!)?html}">${(g.description!)?html}</td>
+                    <td class="px-4 py-3 text-slate-600">${count}</td>
+                    <td class="px-4 py-3 text-right whitespace-nowrap">
+                        <div class="group-action-wrap inline-block relative">
+                            <button type="button" class="group-action-btn px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm rounded-lg transition inline-flex items-center gap-1 cursor-pointer border-0">
+                                操作 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                            </button>
+                            <div class="group-action-menu fixed py-1 min-w-[8rem] rounded-lg bg-white border border-slate-200 shadow-xl z-[200]" style="display: none; position: fixed;">
+                                <button type="button" class="js-open-group-modal flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 rounded-t-lg border-0 bg-transparent cursor-pointer" data-group-id="${g.id!}"><svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>编辑</button>
+                                <#if count == 0>
+                                <form method="post" action="/host/group/delete" class="block w-full">
+                                    <input type="hidden" name="id" value="${g.id!}">
+                                    <button type="button" class="js-confirm-submit flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-b-lg border-0 bg-transparent cursor-pointer" data-confirm="确定删除该分组？"><svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>删除</button>
+                                </form>
+                                <#else>
+                                <span class="flex items-center gap-2 px-4 py-2 text-sm text-slate-400 cursor-not-allowed" title="该分组下还有 ${count} 台主机，无法删除"><svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>删除</span>
+                                </#if>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+                </#list>
+            </tbody>
+        </table>
+        <#if !groups?? || groups?size == 0>
+        <p class="px-4 py-8 text-center text-slate-500 text-sm">暂无分组，<button type="button" class="js-open-group-modal text-blue-600 hover:underline border-0 bg-transparent cursor-pointer p-0" data-group-id="">新增一个</button></p>
+        </#if>
+    </div>
+
+    <div id="groupModalOverlay" class="fixed inset-0 bg-black/50 z-[300] hidden items-center justify-center" style="display: none;">
+        <div id="groupModal" class="bg-white rounded-xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto mx-4">
+            <div id="groupModalBody" class="p-6"></div>
+        </div>
+    </div>
+    <script>
+    (function() {
+        var overlay = document.getElementById('groupModalOverlay');
+        var modalBody = document.getElementById('groupModalBody');
+
+        if (typeof toast === 'function') {
+            var msgEl = document.getElementById('groupListMessage');
+            if (msgEl && msgEl.value) {
+                var msg = msgEl.value;
+                toast(msg, msg.indexOf('成功') >= 0 ? 'success' : 'error');
+            }
+        }
+
+        document.querySelectorAll('.group-action-btn').forEach(function(btn) {
+            var wrap = btn.closest('.group-action-wrap');
+            var menu = wrap ? wrap.querySelector('.group-action-menu') : null;
+            if (!menu) return;
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                var isOpen = menu.style.display === 'block';
+                document.querySelectorAll('.group-action-menu').forEach(function(m) { m.style.display = 'none'; });
+                if (!isOpen) {
+                    var r = btn.getBoundingClientRect();
+                    menu.style.left = r.left + 'px';
+                    menu.style.top = (r.bottom + 4) + 'px';
+                    menu.style.display = 'block';
+                }
+            });
+        });
+        document.addEventListener('click', function() {
+            document.querySelectorAll('.group-action-menu').forEach(function(m) { m.style.display = 'none'; });
+        });
+
+        function openGroupModal(groupId) {
+            var qs = groupId ? '?id=' + encodeURIComponent(groupId) : '';
+            overlay.classList.remove('hidden');
+            overlay.style.display = 'flex';
+            modalBody.innerHTML = '<div class="text-center py-8 text-slate-500">加载中…</div>';
+            fetch('/host/group/form' + qs, { credentials: 'same-origin' })
+                .then(function(r) { return r.text(); })
+                .then(function(html) {
+                    modalBody.innerHTML = html;
+                    var form = document.getElementById('groupFormModal');
+                    var closeBtn = modalBody.querySelector('.js-modal-close');
+                    if (closeBtn) closeBtn.addEventListener('click', closeGroupModal);
+                    overlay.onclick = function(e) { if (e.target === overlay) closeGroupModal(); };
+                    if (form) {
+                        form.addEventListener('submit', function(e) {
+                            var name = (form.querySelector('input[name="name"]') || {}).value;
+                            if (!name || !name.trim()) {
+                                e.preventDefault();
+                                if (typeof toast === 'function') toast('分组名称不能为空', 'warning');
+                                return;
+                            }
+                        });
+                    }
+                })
+                .catch(function() {
+                    modalBody.innerHTML = '<div class="text-center py-8 text-red-600">加载失败</div>';
+                    if (typeof toast === 'function') toast('加载失败', 'error');
+                });
+        }
+        function closeGroupModal() {
+            overlay.classList.add('hidden');
+            overlay.style.display = 'none';
+        }
+
+        document.addEventListener('click', function(e) {
+            var btn = e.target.closest('.js-open-group-modal');
+            if (btn) {
+                e.preventDefault();
+                e.stopPropagation();
+                var id = btn.getAttribute('data-group-id');
+                openGroupModal(id || null);
+            }
+        });
+    })();
+    </script>
+</@layout.main>

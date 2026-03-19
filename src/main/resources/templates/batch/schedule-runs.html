@@ -1,0 +1,102 @@
+<#-- 某任务的执行记录列表（弹窗内嵌） -->
+<#if fragment!false>
+<div class="schedule-runs-fragment" data-schedule-id="${schedule.id!}">
+    <#if runs?? && runs?size gt 0>
+    <div class="overflow-x-auto -mx-2">
+        <table class="w-full text-left text-sm">
+            <thead>
+                <tr class="border-b border-slate-200 text-slate-600">
+                    <th class="px-4 py-3 text-xs font-semibold uppercase">执行时间</th>
+                    <th class="px-4 py-3 text-xs font-semibold uppercase">状态</th>
+                    <th class="px-4 py-3 text-xs font-semibold uppercase">成功/失败</th>
+                    <th class="px-4 py-3 text-xs font-semibold uppercase text-right">操作</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200">
+                <#list runs as t>
+                <tr class="hover:bg-slate-50">
+                    <td class="px-4 py-3 text-slate-600">${(t.createTime?string("yyyy-MM-dd HH:mm:ss"))!''}</td>
+                    <td class="px-4 py-3">
+                        <#if t.status == 1><span class="px-2 py-0.5 rounded text-xs bg-emerald-100 text-emerald-700">完成</span><#else><span class="px-2 py-0.5 rounded text-xs bg-amber-100 text-amber-700">执行中</span></#if>
+                    </td>
+                    <td class="px-4 py-3 text-slate-600">${t.successCount!0} / ${t.failCount!0}</td>
+                    <td class="px-4 py-3 text-right">
+                        <button type="button" class="js-open-logs-modal text-blue-600 hover:underline text-sm border-0 bg-transparent cursor-pointer p-0" data-task-id="${t.id!}" data-task-name="${(t.name!)?html}">查看日志</button>
+                        <a href="/batch/task/${t.id!}" class="ml-2 text-slate-600 hover:underline text-sm">详情</a>
+                    </td>
+                </tr>
+                </#list>
+            </tbody>
+        </table>
+    </div>
+    <#assign totalPages = (totalPages!1)!>
+    <#assign currentPage = (page!1)!>
+    <#if totalPages gt 1>
+    <div class="flex items-center justify-between mt-4 pt-3 border-t border-slate-200 text-sm text-slate-600">
+        <span>共 ${total!0} 条，第 ${currentPage} / ${totalPages} 页</span>
+        <div class="flex gap-2">
+            <#if currentPage gt 1>
+            <button type="button" class="js-runs-page px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-50 text-slate-700 cursor-pointer" data-page="${currentPage - 1}">上一页</button>
+            </#if>
+            <#if currentPage lt totalPages>
+            <button type="button" class="js-runs-page px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-50 text-slate-700 cursor-pointer" data-page="${currentPage + 1}">下一页</button>
+            </#if>
+        </div>
+    </div>
+    </#if>
+    <#else>
+    <p class="text-slate-500 text-center py-8">该任务暂无执行记录</p>
+    </#if>
+</div>
+<#else>
+<#import "../layout.html" as layout>
+<@layout.main title="执行记录" nav="batch">
+    <div class="max-w-3xl mx-auto">
+        <div class="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
+            <h1 class="text-lg font-semibold text-slate-800 mb-4">执行记录：${(schedule.name!)?html}</h1>
+            <#if runs?? && runs?size gt 0>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm">
+                    <thead>
+                        <tr class="border-b border-slate-200 text-slate-600">
+                            <th class="px-4 py-3 text-xs font-semibold uppercase">执行时间</th>
+                            <th class="px-4 py-3 text-xs font-semibold uppercase">状态</th>
+                            <th class="px-4 py-3 text-xs font-semibold uppercase">成功/失败</th>
+                            <th class="px-4 py-3 text-xs font-semibold uppercase text-right">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-200">
+                        <#list runs as t>
+                        <tr class="hover:bg-slate-50">
+                            <td class="px-4 py-3">${(t.createTime?string("yyyy-MM-dd HH:mm:ss"))!''}</td>
+                            <td class="px-4 py-3"><#if t.status == 1>完成<#else>执行中</#if></td>
+                            <td class="px-4 py-3">${t.successCount!0} / ${t.failCount!0}</td>
+                            <td class="px-4 py-3 text-right"><a href="/batch/task/${t.id!}" class="text-blue-600 hover:underline">详情</a></td>
+                        </tr>
+                        </#list>
+                    </tbody>
+                </table>
+            </div>
+            <#else>
+            <p class="text-slate-500 py-8">该任务暂无执行记录</p>
+            </#if>
+            <#assign totalPagesP = (totalPages!1)!>
+            <#assign currentPageP = (page!1)!>
+            <#if totalPagesP gt 1>
+            <div class="flex items-center justify-between mt-4 pt-4 border-t border-slate-200 text-sm text-slate-600">
+                <span>共 ${total!0} 条，第 ${currentPageP} / ${totalPagesP} 页</span>
+                <div class="flex gap-2">
+                    <#if currentPageP gt 1>
+                    <a href="/batch/schedule/${schedule.id!}/runs?page=${currentPageP - 1}&size=${size!10}" class="px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-50 transition">上一页</a>
+                    </#if>
+                    <#if currentPageP lt totalPagesP>
+                    <a href="/batch/schedule/${schedule.id!}/runs?page=${currentPageP + 1}&size=${size!10}" class="px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-50 transition">下一页</a>
+                    </#if>
+                </div>
+            </div>
+            </#if>
+            <div class="mt-4"><a href="/batch" class="text-slate-600 hover:underline">返回任务列表</a></div>
+        </div>
+    </div>
+</@layout.main>
+</#if>

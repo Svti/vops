@@ -1,0 +1,146 @@
+<#-- 通知渠道表单：fragment=true 时仅输出表单（弹窗用），否则带布局的完整页 -->
+<#macro notifierForm>
+<div class="notifier-form-fragment">
+    <h2 class="text-lg font-semibold text-slate-800 mb-4"><#if notifier.id??>编辑渠道<#else>新增渠道</#if></h2>
+    <form method="post" action="/notifier/save" id="notifierFormModal" class="space-y-4">
+        <#if notifier.id??><input type="hidden" name="id" value="${notifier.id!}"></#if>
+        <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">渠道名称</label>
+            <input type="text" name="name" value="${(notifier.name!)?html}" required maxlength="64" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="如：运维群">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">渠道类型</label>
+            <select name="channel" id="channelModal" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                <option value="dingtalk" <#if (notifier.channel!'')?lower_case == 'dingtalk'>selected</#if>>钉钉机器人</option>
+                <option value="feishu" <#if (notifier.channel!'')?lower_case == 'feishu'>selected</#if>>飞书机器人</option>
+                <option value="wecom" <#if (notifier.channel!'')?lower_case == 'wecom'>selected</#if>>企业微信机器人</option>
+                <option value="email" <#if (notifier.channel!'')?lower_case == 'email'>selected</#if>>邮件</option>
+            </select>
+        </div>
+        <div id="webhookWrapModal" class="<#if notifier.channel?? && (notifier.channel!)?lower_case == 'email'>hidden</#if>">
+            <label class="block text-sm font-medium text-slate-700 mb-1">Webhook URL</label>
+            <input type="url" name="webhook" value="${(configWebhook!)?html}" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="https://...">
+        </div>
+        <div id="secretWrapModal" class="<#if !notifier.channel?? || (notifier.channel!)?lower_case != 'dingtalk'>hidden</#if>">
+            <label class="block text-sm font-medium text-slate-700 mb-1">加签密钥 (Secret) <span class="text-slate-500 font-normal">钉钉安全设置开启加签时必填</span></label>
+            <input type="text" name="secret" value="${(configSecret!)?html}" autocomplete="off" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="SEC...">
+        </div>
+        <div id="toWrapModal" class="<#if !notifier.channel?? || (notifier.channel!)?lower_case != 'email'>hidden</#if>">
+            <label class="block text-sm font-medium text-slate-700 mb-1">收件人 (to)</label>
+            <input type="text" name="to" value="${(configTo!)?html}" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="admin@example.com">
+        </div>
+        <div class="flex items-center gap-2">
+            <input type="checkbox" name="enabled" value="1" id="enabledModal" <#if !notifier.enabled?? || notifier.enabled == 1>checked</#if> class="rounded border-slate-300 text-blue-600 focus:ring-blue-500">
+            <label for="enabledModal" class="text-sm text-slate-700">启用该渠道</label>
+        </div>
+        <div class="flex gap-3 pt-2">
+            <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition border-0 cursor-pointer">保存</button>
+            <button type="button" class="js-test-notifier-send px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-lg transition border-0 cursor-pointer">测试发送</button>
+            <a href="/notifier" class="js-modal-close px-4 py-2 text-slate-600 hover:text-slate-800 transition cursor-pointer">取消</a>
+        </div>
+    </form>
+</div>
+</#macro>
+<#if fragment!false>
+<@notifierForm/>
+<#else>
+<#import "../layout.html" as layout>
+<@layout.main title="通知渠道" nav="notifier">
+    <div class="flex flex-col items-center">
+    <div class="mb-6 w-full max-w-xl">
+        <h1 class="text-sm font-semibold text-slate-600 uppercase tracking-wider"><#if notifier.id??>编辑渠道<#else>新增渠道</#if></h1>
+        <p class="text-xs text-slate-500 mt-1">告警将发送到此渠道</p>
+    </div>
+    <form method="post" action="/notifier/save" class="w-full max-w-xl bg-white border border-slate-200 rounded-xl shadow-sm p-6" id="notifierForm">
+        <#if notifier.id??><input type="hidden" name="id" value="${notifier.id!}"></#if>
+        <div class="space-y-4">
+            <div>
+                <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">渠道名称</label>
+                <input type="text" name="name" value="${(notifier.name!)?html}" required maxlength="64" class="w-full px-4 py-2 border border-slate-300 rounded-lg text-slate-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="如：运维群">
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">渠道类型</label>
+                <select name="channel" id="channel" required class="w-full px-4 py-2 border border-slate-300 rounded-lg text-slate-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    <option value="dingtalk" <#if (notifier.channel!'')?lower_case == 'dingtalk'>selected</#if>>钉钉机器人</option>
+                    <option value="feishu" <#if (notifier.channel!'')?lower_case == 'feishu'>selected</#if>>飞书机器人</option>
+                    <option value="wecom" <#if (notifier.channel!'')?lower_case == 'wecom'>selected</#if>>企业微信机器人</option>
+                    <option value="email" <#if (notifier.channel!'')?lower_case == 'email'>selected</#if>>邮件</option>
+                </select>
+            </div>
+            <div id="webhookWrap" class="<#if notifier.channel?? && (notifier.channel!)?lower_case == 'email'>hidden</#if>">
+                <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Webhook URL</label>
+                <input type="url" name="webhook" value="${(configWebhook!)?html}" class="w-full px-4 py-2 border border-slate-300 rounded-lg text-slate-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="https://...">
+            </div>
+            <div id="secretWrap" class="<#if !notifier.channel?? || (notifier.channel!)?lower_case != 'dingtalk'>hidden</#if>">
+                <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">加签密钥 (Secret) <span class="text-slate-500 font-normal">钉钉安全设置开启加签时必填</span></label>
+                <input type="text" name="secret" value="${(configSecret!)?html}" autocomplete="off" class="w-full px-4 py-2 border border-slate-300 rounded-lg text-slate-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="SEC...">
+            </div>
+            <div id="toWrap" class="<#if !notifier.channel?? || (notifier.channel!)?lower_case != 'email'>hidden</#if>">
+                <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">收件人 (to)</label>
+                <input type="text" name="to" value="${(configTo!)?html}" class="w-full px-4 py-2 border border-slate-300 rounded-lg text-slate-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="admin@example.com">
+            </div>
+            <div class="flex items-center gap-2">
+                <input type="checkbox" name="enabled" value="1" id="enabled" <#if !notifier.enabled?? || notifier.enabled == 1>checked</#if> class="rounded border-slate-300 text-blue-600 focus:ring-blue-500">
+                <label for="enabled" class="text-sm text-slate-700">启用该渠道</label>
+            </div>
+        </div>
+        <div class="mt-6 flex gap-3">
+            <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg border-0 cursor-pointer">保存</button>
+            <button type="button" id="testSendBtnPage" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium rounded-lg border-0 cursor-pointer">测试发送</button>
+            <a href="/notifier" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium rounded-lg cursor-pointer">取消</a>
+        </div>
+    </form>
+    <script>
+        (function() {
+            var channel = document.getElementById('channel');
+            var webhookWrap = document.getElementById('webhookWrap');
+            var secretWrap = document.getElementById('secretWrap');
+            var toWrap = document.getElementById('toWrap');
+            function toggle() {
+                var v = (channel.value || '').toLowerCase();
+                webhookWrap.classList.toggle('hidden', v === 'email');
+                if (secretWrap) secretWrap.classList.toggle('hidden', v !== 'dingtalk');
+                toWrap.classList.toggle('hidden', v !== 'email');
+            }
+            channel.addEventListener('change', toggle);
+            toggle();
+
+            var form = document.getElementById('notifierForm');
+            var testBtn = document.getElementById('testSendBtnPage');
+            if (form && testBtn) {
+                testBtn.addEventListener('click', function() {
+                    var params = new URLSearchParams();
+                    var idInput = form.querySelector('input[name="id"]');
+                    if (idInput && idInput.value) params.append('id', idInput.value);
+                    params.append('channel', (form.querySelector('select[name="channel"]') || {}).value || '');
+                    params.append('webhook', (form.querySelector('input[name="webhook"]') || {}).value || '');
+                    params.append('secret', (form.querySelector('input[name="secret"]') || {}).value || '');
+                    params.append('to', (form.querySelector('input[name="to"]') || {}).value || '');
+                    if (testBtn.disabled) return;
+                    testBtn.disabled = true;
+                    testBtn.textContent = '发送中…';
+                    fetch('/notifier/test-send', {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: { 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: params.toString()
+                    }).then(function(res) { return res.json().catch(function() { return {}; }); }).then(function(data) {
+                        testBtn.disabled = false;
+                        testBtn.textContent = '测试发送';
+                        if (data && data.success) {
+                            toast('测试消息已发送', 'success');
+                        } else {
+                            toast(data.message || '发送失败', 'error');
+                        }
+                    }).catch(function() {
+                        testBtn.disabled = false;
+                        testBtn.textContent = '测试发送';
+                        toast('发送失败', 'error');
+                    });
+                });
+            }
+        })();
+    </script>
+    </div>
+</@layout.main>
+</#if>

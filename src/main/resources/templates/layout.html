@@ -1,0 +1,471 @@
+<#-- 公共布局：JSch OPS 深色侧栏 + 顶栏 + 主内容 + 页脚 -->
+<#macro main title="JSch OPS" nav="">
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>${title} - JSch OPS</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <script src="https://registry.npmmirror.com/tailwindcss-cdn/3.4.10/files/tailwindcss.js"></script>
+    <style>
+        body { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; }
+        .nav-item-active { background-color: rgb(37 99 235); color: white; }
+        .nav-item { color: rgb(148 163 184); }
+        .nav-item:hover { background-color: rgb(30 41 59); color: rgb(241 245 249); }
+        .user-menu summary { list-style: none; cursor: pointer; }
+        .user-menu summary::-webkit-details-marker { display: none; }
+        #toast-container { z-index: 9999; }
+        [data-sidebar=collapsed] aside#sidebar { width: 4rem; }
+        [data-sidebar=collapsed] #mainWithSidebar { padding-left: 4rem; }
+        [data-sidebar=collapsed] .nav-label { opacity: 0; width: 0; overflow: hidden; white-space: nowrap; }
+        [data-sidebar=collapsed] aside .sidebar-header { justify-content: center; padding-left: 0.5rem; padding-right: 0.5rem; }
+        [data-sidebar=collapsed] aside #sidebarLogoImg { height: 2rem; width: auto; display: block; }
+        [data-sidebar=collapsed] aside nav { padding: 0.5rem; }
+        [data-sidebar=collapsed] aside nav a { justify-content: center; padding-left: 0; padding-right: 0; }
+        aside#sidebar { transition: width 0.2s ease; }
+        #mainWithSidebar { transition: padding-left 0.2s ease; }
+        .nav-label { transition: opacity 0.15s ease, width 0.15s ease; display: inline-block; }
+        .toast-enter { animation: toast-in 0.25s ease-out; }
+        .toast-leave { animation: toast-out 0.2s ease-in forwards; }
+        @keyframes toast-in { from { opacity: 0; transform: translateX(100%); } to { opacity: 1; transform: translateX(0); } }
+        @keyframes toast-out { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(100%); } }
+    </style>
+</head>
+<body class="min-h-screen text-slate-800 selection:bg-blue-500/20" id="layoutBody" data-sidebar="expanded">
+    <aside id="sidebar" class="fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 border-r border-slate-800 flex flex-col overflow-hidden">
+        <div class="sidebar-header h-16 flex items-center gap-3 px-4 border-b border-slate-800 shrink-0 min-w-0">
+            <img src="/logo-dark.svg" alt="JSch OPS" class="h-10 w-auto shrink-0" id="sidebarLogoImg">
+        </div>
+        <nav class="flex-1 p-4 space-y-1 overflow-y-auto overflow-x-hidden">
+            <a href="/" class="flex items-center gap-3 px-4 py-3 rounded-lg transition-all w-full min-w-0 ${((nav!'') == 'index')?then('nav-item-active','nav-item')}">
+                <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
+                <span class="nav-label font-medium text-sm">运维总览</span>
+            </a>
+            <a href="/host" class="flex items-center gap-3 px-4 py-3 rounded-lg transition-all w-full min-w-0 ${((nav!'') == 'host')?then('nav-item-active','nav-item')}">
+                <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01"/></svg>
+                <span class="nav-label font-medium text-sm">主机管理</span>
+            </a>
+            <a href="/monitor" class="flex items-center gap-3 px-4 py-3 rounded-lg transition-all w-full min-w-0 ${((nav!'') == 'monitor')?then('nav-item-active','nav-item')}">
+                <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                <span class="nav-label font-medium text-sm">监控中心</span>
+            </a>
+            <a href="/batch" class="flex items-center gap-3 px-4 py-3 rounded-lg transition-all w-full min-w-0 ${((nav!'') == 'batch')?then('nav-item-active','nav-item')}">
+                <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                <span class="nav-label font-medium text-sm">批量执行</span>
+            </a>
+            <a href="/alert" class="flex items-center gap-3 px-4 py-3 rounded-lg transition-all w-full min-w-0 ${((nav!'') == 'alert')?then('nav-item-active','nav-item')}">
+                <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+                <span class="nav-label font-medium text-sm">告警规则</span>
+            </a>
+            <a href="/sshkey" class="flex items-center gap-3 px-4 py-3 rounded-lg transition-all w-full min-w-0 ${((nav!'') == 'sshkey')?then('nav-item-active','nav-item')}">
+                <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
+                <span class="nav-label font-medium text-sm">私钥管理</span>
+            </a>
+            <a href="/notifier" class="flex items-center gap-3 px-4 py-3 rounded-lg transition-all w-full min-w-0 ${((nav!'') == 'notifier')?then('nav-item-active','nav-item')}">
+                <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                <span class="nav-label font-medium text-sm">通知渠道</span>
+            </a>
+            <#if isAdmin!false>
+            <a href="/user" class="flex items-center gap-3 px-4 py-3 rounded-lg transition-all w-full min-w-0 ${((nav!'') == 'user')?then('nav-item-active','nav-item')}">
+                <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                <span class="nav-label font-medium text-sm">用户管理</span>
+            </a>
+            <a href="/role" class="flex items-center gap-3 px-4 py-3 rounded-lg transition-all w-full min-w-0 ${((nav!'') == 'role')?then('nav-item-active','nav-item')}">
+                <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/></svg>
+                <span class="nav-label font-medium text-sm">角色管理</span>
+            </a>
+            </#if>
+            <a href="/audit" class="flex items-center gap-3 px-4 py-3 rounded-lg transition-all w-full min-w-0 ${((nav!'') == 'audit')?then('nav-item-active','nav-item')}">
+                <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                <span class="nav-label font-medium text-sm">操作审计</span>
+            </a>
+        </nav>
+        <div class="p-2 border-t border-slate-800 shrink-0">
+            <button type="button" id="sidebarToggle" class="flex items-center justify-center w-full py-2 rounded-lg nav-item hover:bg-slate-800 transition-colors border-0 cursor-pointer outline-none" title="收起侧栏">
+                <svg id="sidebarToggleIcon" class="w-5 h-5 shrink-0 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path id="sidebarToggleIconPath" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 7l-7-7 7-7"/></svg>
+            </button>
+        </div>
+    </aside>
+    <div id="mainWithSidebar" class="pl-64 flex flex-col min-h-screen bg-slate-50">
+        <header class="sticky top-0 z-40 h-16 flex items-center justify-between px-8 bg-white border-b border-slate-200 shadow-sm">
+            <h1 class="text-sm font-bold text-slate-800 uppercase tracking-widest">
+                <#if (nav!'') == 'index'>运维总览</#if>
+                <#if (nav!'') == 'host'>主机管理</#if>
+                <#if (nav!'') == 'monitor'>监控中心</#if>
+                <#if (nav!'') == 'batch'>批量执行</#if>
+                <#if (nav!'') == 'sshkey'>私钥管理</#if>
+                <#if (nav!'') == 'audit'>操作审计</#if>
+                <#if (nav!'') == 'settings'>系统设置</#if>
+                <#if (nav!'') == 'notifier'>通知渠道</#if>
+                <#if (nav!'') == 'alert'>告警规则</#if>
+                <#if (nav!'') == 'user'>用户管理</#if>
+                <#if (nav!'') == 'role'>角色管理</#if>
+            </h1>
+            <div class="flex items-center">
+                <#if user??>
+                <#assign displayName = ((user.realName!)?trim)?has_content?then(user.realName, user.username!'')>
+                <details class="user-menu relative">
+                    <summary class="flex items-center gap-3 rounded-xl py-1.5 pl-1.5 pr-3 hover:bg-slate-100 transition-colors outline-none">
+                        <div class="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white font-bold shadow shadow-blue-500/30 shrink-0">
+                            ${(displayName!'?')[0..0]?upper_case}
+                        </div>
+                        <span class="text-sm font-medium text-slate-700 hidden sm:inline">${displayName}</span>
+                        <svg class="w-4 h-4 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                    </summary>
+                    <div class="absolute right-0 top-full mt-2 w-52 rounded-xl bg-white border border-slate-200 shadow-lg shadow-slate-200/50 py-1.5 z-50">
+                        <a href="/user/password" class="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors rounded-t-xl">
+                            <svg class="w-4 h-4 text-slate-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
+                            修改密码
+                        </a>
+                        <a href="/logout" class="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-rose-50 hover:text-rose-600 transition-colors">
+                            <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                            退出系统
+                        </a>
+                    </div>
+                </details>
+                </#if>
+            </div>
+        </header>
+        <main class="flex-1 p-8 max-w-[1600px] w-full mx-auto overflow-y-auto bg-slate-50 text-slate-800">
+            <#nested>
+        </main>
+    </div>
+    <div id="toast-container" class="fixed top-4 right-4 flex flex-col gap-2 pointer-events-none w-full max-w-sm sm:max-w-md"></div>
+    <div id="confirmModalOverlay" class="fixed inset-0 bg-black/50 z-[400] hidden items-center justify-center p-4" style="display: none;">
+        <div class="bg-white rounded-xl shadow-xl max-w-sm w-full mx-4 p-5">
+            <p id="confirmModalMessage" class="text-slate-800 text-sm mb-5"></p>
+            <div class="flex gap-3 justify-end">
+                <button type="button" id="confirmModalCancel" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium rounded-lg border-0 cursor-pointer">取消</button>
+                <button type="button" id="confirmModalOk" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg border-0 cursor-pointer">确定</button>
+            </div>
+        </div>
+    </div>
+    <!-- 终端弹窗：宽度 w-full max-w-6xl = min(100%, 72rem)=1152px)，高度 90vh，overlay p-4 -->
+    <div id="terminalModalOverlay" class="fixed inset-0 bg-black/50 z-[300] hidden items-center justify-center p-4" style="display: none;">
+        <div class="bg-white rounded-xl shadow-xl w-full max-w-6xl flex flex-col" style="height: 90vh; max-height: calc(100vh - 2rem);">
+            <div class="flex items-center justify-between px-4 py-3 border-b border-slate-200 shrink-0">
+                <span id="terminalModalTitle" class="text-sm font-medium text-slate-700">终端</span>
+                <div class="flex items-center gap-3">
+                    <span id="terminalModalStatus" class="text-sm text-slate-500"></span>
+                    <button type="button" id="terminalModalReconnect" class="hidden px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm transition border-0 cursor-pointer">重新连接</button>
+                    <button type="button" id="terminalModalDisconnect" class="hidden px-3 py-1.5 bg-slate-500 hover:bg-slate-600 text-white rounded-lg text-sm transition border-0 cursor-pointer">断开</button>
+                    <button type="button" id="terminalModalClose" class="px-3 py-1.5 text-slate-600 hover:bg-slate-100 rounded-lg text-sm transition border-0 bg-transparent cursor-pointer">关闭</button>
+                </div>
+            </div>
+            <div id="terminalModalBody" class="flex-1 flex flex-col bg-slate-900 rounded-b-xl overflow-hidden relative" style="min-height: 0;">
+                <div id="terminalModalTermWrap" class="flex-1 min-h-0 w-full overflow-hidden"></div>
+                <div id="terminalModalCtx" class="hidden fixed z-[1000] min-w-[10rem] py-1 bg-white border border-slate-200 rounded-lg shadow-xl text-sm">
+                    <button type="button" class="term-modal-ctx-copy flex items-center gap-2 w-full text-left px-4 py-2 text-slate-700 hover:bg-slate-50 border-0 bg-transparent cursor-pointer">复制</button>
+                    <button type="button" class="term-modal-ctx-paste flex items-center gap-2 w-full text-left px-4 py-2 text-slate-700 hover:bg-slate-50 border-0 bg-transparent cursor-pointer">粘贴</button>
+                    <button type="button" class="term-modal-ctx-copyConn flex items-center gap-2 w-full text-left px-4 py-2 text-slate-700 hover:bg-slate-50 rounded-b-lg border-0 bg-transparent cursor-pointer">复制连接</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css">
+    <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
+    <script>
+    (function terminalModalGlobal() {
+        var terminalModalWs = null, terminalModalTerm = null, terminalModalFit = null, terminalModalResizeHandler = null, terminalModalResizeObserver = null;
+        var terminalModalStartWsRef = null;
+        var terminalModalReconnectBtn = null;
+        function setTerminalModalStatus(text, type) {
+            var el = document.getElementById('terminalModalStatus');
+            if (!el) return;
+            el.textContent = text;
+            el.className = 'text-sm font-medium ' + (type === 'error' ? 'text-red-600' : type === 'connected' ? 'text-emerald-600' : 'text-slate-500');
+        }
+        function closeTerminalModal() {
+            if (terminalModalResizeHandler) { window.removeEventListener('resize', terminalModalResizeHandler); terminalModalResizeHandler = null; }
+            if (terminalModalResizeObserver) { terminalModalResizeObserver.disconnect(); terminalModalResizeObserver = null; }
+            if (terminalModalWs) { terminalModalWs.close(); terminalModalWs = null; }
+            if (terminalModalTerm) { try { terminalModalTerm.dispose(); } catch (e) {} terminalModalTerm = null; }
+            terminalModalFit = null;
+            var overlay = document.getElementById('terminalModalOverlay');
+            var termWrap = document.getElementById('terminalModalTermWrap');
+            if (termWrap) termWrap.innerHTML = '';
+            if (overlay) { overlay.classList.add('hidden'); overlay.style.display = 'none'; }
+            setTerminalModalStatus('', '');
+            var disconnectBtn = document.getElementById('terminalModalDisconnect');
+            if (disconnectBtn) disconnectBtn.style.display = 'none';
+            if (terminalModalReconnectBtn) terminalModalReconnectBtn.style.display = 'none';
+            terminalModalStartWsRef = null;
+        }
+        function openTerminalModal(hostId, hostName) {
+            var overlay = document.getElementById('terminalModalOverlay');
+            var titleEl = document.getElementById('terminalModalTitle');
+            var termWrap = document.getElementById('terminalModalTermWrap');
+            var bodyEl = document.getElementById('terminalModalBody');
+            var disconnectBtn = document.getElementById('terminalModalDisconnect');
+            if (!overlay || !termWrap) return;
+            closeTerminalModal();
+            if (titleEl) titleEl.textContent = '终端 - ' + (hostName || hostId);
+            setTerminalModalStatus('连接中…', '');
+            terminalModalReconnectBtn = document.getElementById('terminalModalReconnect');
+            if (disconnectBtn) { disconnectBtn.style.display = 'none'; }
+            if (terminalModalReconnectBtn) terminalModalReconnectBtn.style.display = 'none';
+            termWrap.innerHTML = '';
+            overlay.classList.remove('hidden');
+            overlay.style.display = 'flex';
+            if (typeof Terminal === 'undefined') { setTerminalModalStatus('终端加载失败', 'error'); return; }
+            function initAfterLayout() {
+                var term = new Terminal({ cursorBlink: true, theme: { background: '#0f172a', foreground: '#e2e8f0' } });
+                var fitAddon = null;
+                try { var F = typeof window.FitAddon === 'function' ? window.FitAddon : (window.FitAddon && window.FitAddon.default); if (F) { fitAddon = new F(); term.loadAddon(fitAddon); } } catch (err) {}
+                term.open(termWrap);
+                term.write('连接中…\r\n');
+                var runFirstFit = function() {
+                    try { if (fitAddon && fitAddon.fit) fitAddon.fit(); } catch (e) {}
+                    if ((term.cols || 0) <= 80 && (term.rows || 0) <= 24 && termWrap.clientWidth > 0 && termWrap.clientHeight > 0) {
+                        var cw = 9, ch = 18;
+                        var cols = Math.max(2, Math.floor((termWrap.clientWidth - 12) / cw));
+                        var rows = Math.max(1, Math.floor(termWrap.clientHeight / ch));
+                        try { term.resize(cols, rows); } catch (e) {}
+                    }
+                };
+                requestAnimationFrame(function() { requestAnimationFrame(runFirstFit); });
+                function doFitThenConnect() {
+                    try { if (fitAddon && fitAddon.fit) fitAddon.fit(); } catch (e) {}
+                    if ((term.cols || 0) <= 80 && (term.rows || 0) <= 24 && termWrap.clientWidth > 0 && termWrap.clientHeight > 0) {
+                        var cw = 9, ch = 18;
+                        var cols = Math.max(2, Math.floor((termWrap.clientWidth - 12) / cw));
+                        var rows = Math.max(1, Math.floor(termWrap.clientHeight / ch));
+                        try { term.resize(cols, rows); } catch (e) {}
+                    }
+                    startWebSocket();
+                }
+                requestAnimationFrame(function() {
+                    requestAnimationFrame(function() {
+                        setTimeout(doFitThenConnect, 50);
+                    });
+                });
+                terminalModalTerm = term;
+                terminalModalFit = fitAddon;
+                if (typeof ResizeObserver !== 'undefined') {
+                    terminalModalResizeObserver = new ResizeObserver(function() {
+                        if (terminalModalTerm && termWrap.clientWidth > 0 && termWrap.clientHeight > 0) {
+                            var cw = 9, ch = 18;
+                            var cols = Math.max(2, Math.floor((termWrap.clientWidth - 12) / cw));
+                            var rows = Math.max(1, Math.floor(termWrap.clientHeight / ch));
+                            try { terminalModalTerm.resize(cols, rows); } catch (e) {}
+                        }
+                        if (terminalModalWs && terminalModalWs.readyState === WebSocket.OPEN && terminalModalTerm && terminalModalTerm.cols && terminalModalTerm.rows)
+                            terminalModalWs.send(JSON.stringify({ type: 'resize', cols: terminalModalTerm.cols, rows: terminalModalTerm.rows }));
+                    });
+                    terminalModalResizeObserver.observe(termWrap);
+                }
+                function startWebSocket() {
+                var proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+                var ws = new WebSocket(proto + '//' + location.host + '/ws/terminal');
+                terminalModalWs = ws;
+                var terminalModalConnStr = (hostName || '') ? (hostName + ' (ID:' + hostId + ')') : String(hostId);
+                ws.onopen = function() {
+                    var connectSent = false;
+                    function sendConnect() {
+                        if (connectSent || ws.readyState !== WebSocket.OPEN) return;
+                        try { if (fitAddon && fitAddon.fit) fitAddon.fit(); } catch (e) {}
+                        var cols = (term && term.cols) ? term.cols : 80;
+                        var rows = (term && term.rows) ? term.rows : 24;
+                        ws.send(JSON.stringify({ type: 'connect', hostId: parseInt(hostId, 10), cols: cols, rows: rows }));
+                        connectSent = true;
+                    }
+                    if (termWrap.clientWidth > 0 && termWrap.clientHeight > 0) sendConnect();
+                    else setTimeout(function() { if (!connectSent) sendConnect(); }, 100);
+                };
+                ws.onmessage = function(e) {
+                    try {
+                        var d = JSON.parse(e.data);
+                        var t = d && d.type;
+                        if (t === 'connected') {
+                            setTerminalModalStatus('已连接', 'connected');
+                            if (disconnectBtn) disconnectBtn.style.display = 'inline-block';
+                            if (terminalModalReconnectBtn) terminalModalReconnectBtn.style.display = 'none';
+                            if (term) { term.clear(); term.write('\x1b[32m已连接到主机。\x1b[0m\r\n'); }
+                            setTimeout(function() {
+                                try { if (fitAddon && fitAddon.fit) fitAddon.fit(); } catch (e) {}
+                                if (ws && ws.readyState === WebSocket.OPEN && term && term.cols && term.rows)
+                                    ws.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows }));
+                            }, 50);
+                        } else if (t === 'outputBase64' && term) {
+                            try { var raw = atob(d.data || ''); var bytes = new Uint8Array(raw.length); for (var i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i); term.write(new TextDecoder().decode(bytes)); } catch (err) {}
+                        } else if (t === 'output' && term) term.write(d.data != null ? d.data : '');
+                        else if (t === 'error') {
+                            setTerminalModalStatus(d.data || '连接失败', 'error');
+                            if (term) term.write('\r\n\x1b[31mError: ' + (d.data || '连接失败') + '\x1b[0m\r\n');
+                            if (disconnectBtn) disconnectBtn.style.display = 'none';
+                            if (terminalModalReconnectBtn) terminalModalReconnectBtn.style.display = 'inline-block';
+                        }
+                    } catch (err) { setTerminalModalStatus('解析失败', 'error'); }
+                };
+                ws.onclose = function() { terminalModalWs = null; setTerminalModalStatus('已断开', ''); if (disconnectBtn) disconnectBtn.style.display = 'none'; if (terminalModalReconnectBtn) terminalModalReconnectBtn.style.display = 'inline-block'; };
+                ws.onerror = function() { setTerminalModalStatus('WebSocket 错误', 'error'); };
+                term.onData(function(data) { if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'input', data: data })); });
+                var ctxMenu = document.getElementById('terminalModalCtx');
+                if (bodyEl && ctxMenu) {
+                    bodyEl.addEventListener('contextmenu', function(ev) { ev.preventDefault(); ctxMenu.classList.remove('hidden'); ctxMenu.style.left = ev.clientX + 'px'; ctxMenu.style.top = ev.clientY + 'px'; });
+                    ctxMenu.querySelector('.term-modal-ctx-copy').onclick = function() { if (term && term.getSelection) { var s = term.getSelection(); if (s && navigator.clipboard) navigator.clipboard.writeText(s); } ctxMenu.classList.add('hidden'); };
+                    ctxMenu.querySelector('.term-modal-ctx-paste').onclick = function() { if (navigator.clipboard && navigator.clipboard.readText && ws && ws.readyState === WebSocket.OPEN) navigator.clipboard.readText().then(function(t) { if (t) ws.send(JSON.stringify({ type: 'input', data: t })); }); ctxMenu.classList.add('hidden'); };
+                    ctxMenu.querySelector('.term-modal-ctx-copyConn').onclick = function() { if (terminalModalConnStr && navigator.clipboard) navigator.clipboard.writeText(terminalModalConnStr); ctxMenu.classList.add('hidden'); };
+                }
+                setTimeout(function() {
+                    try { if (fitAddon && fitAddon.fit) fitAddon.fit(); } catch (e) {}
+                    if (ws && ws.readyState === WebSocket.OPEN && term && term.cols && term.rows)
+                        ws.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows }));
+                }, 100);
+                var resizeHandler = function() {
+                    if (terminalModalTerm && termWrap.clientWidth > 0 && termWrap.clientHeight > 0) {
+                        var cw = 9, ch = 18;
+                        var cols = Math.max(2, Math.floor((termWrap.clientWidth - 12) / cw));
+                        var rows = Math.max(1, Math.floor(termWrap.clientHeight / ch));
+                        try { terminalModalTerm.resize(cols, rows); } catch (e) {}
+                    }
+                    if (terminalModalWs && terminalModalWs.readyState === WebSocket.OPEN && terminalModalTerm && terminalModalTerm.cols && terminalModalTerm.rows)
+                        terminalModalWs.send(JSON.stringify({ type: 'resize', cols: terminalModalTerm.cols, rows: terminalModalTerm.rows }));
+                };
+                window.addEventListener('resize', resizeHandler);
+                terminalModalResizeHandler = resizeHandler;
+                terminalModalStartWsRef = startWebSocket;
+                }
+            }
+            requestAnimationFrame(function() { requestAnimationFrame(initAfterLayout); });
+        }
+        window.openTerminalModal = openTerminalModal;
+        window.closeTerminalModal = closeTerminalModal;
+        (function wire() {
+            var termOverlay = document.getElementById('terminalModalOverlay');
+            var termClose = document.getElementById('terminalModalClose');
+            var termDisconnect = document.getElementById('terminalModalDisconnect');
+            var overlayPressed = false;
+            if (termOverlay) {
+                termOverlay.addEventListener('mousedown', function(ev) { if (ev.target === termOverlay) overlayPressed = true; });
+                termOverlay.addEventListener('click', function(ev) {
+                    if (ev.target === termOverlay && overlayPressed) closeTerminalModal();
+                    overlayPressed = false;
+                });
+                document.addEventListener('mouseup', function() { overlayPressed = false; });
+            }
+            if (termClose) termClose.onclick = closeTerminalModal;
+            if (termDisconnect) termDisconnect.onclick = closeTerminalModal;
+            var termReconnect = document.getElementById('terminalModalReconnect');
+            if (termReconnect) termReconnect.onclick = function() { setTerminalModalStatus('连接中…', ''); if (terminalModalStartWsRef) terminalModalStartWsRef(); if (termReconnect) termReconnect.style.display = 'none'; };
+            document.addEventListener('click', function() { var c = document.getElementById('terminalModalCtx'); if (c) c.classList.add('hidden'); });
+        })();
+    })();
+    </script>
+    <script>
+    (function sidebarToggle() {
+        var KEY = 'vops-sidebar-collapsed';
+        var body = document.getElementById('layoutBody');
+        var btn = document.getElementById('sidebarToggle');
+        var iconPath = document.getElementById('sidebarToggleIconPath');
+        if (!body || !btn) return;
+        function isCollapsed() { return body.getAttribute('data-sidebar') === 'collapsed'; }
+        function applyCollapsed(collapsed) {
+            body.setAttribute('data-sidebar', collapsed ? 'collapsed' : 'expanded');
+            try { localStorage.setItem(KEY, collapsed ? 'true' : 'false'); } catch (e) {}
+            if (iconPath) iconPath.setAttribute('d', collapsed ? 'M13 5l7 7-7 7M5 5l7 7-7 7' : 'M11 5l-7 7 7 7 M19 5l-7 7 7 7');
+            btn.title = collapsed ? '展开侧栏' : '收起侧栏';
+        }
+        var saved = false;
+        try { saved = localStorage.getItem(KEY) === 'true'; } catch (e) {}
+        applyCollapsed(saved);
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            applyCollapsed(!isCollapsed());
+        });
+    })();
+    </script>
+    <script>
+    (function() {
+        var container = document.getElementById('toast-container');
+        var defaultDuration = 3500;
+        var types = {
+            success: 'bg-emerald-50 border-emerald-200 text-emerald-800 shadow-emerald-200/50',
+            error: 'bg-red-50 border-red-200 text-red-800 shadow-red-200/50',
+            info: 'bg-blue-50 border-blue-200 text-blue-800 shadow-blue-200/50',
+            warning: 'bg-amber-50 border-amber-200 text-amber-800 shadow-amber-200/50'
+        };
+        function toast(message, type, duration) {
+            type = type || 'info';
+            duration = duration !== undefined ? duration : defaultDuration;
+            var el = document.createElement('div');
+            el.className = 'toast-enter pointer-events-auto px-4 py-3 rounded-lg border shadow-lg text-sm font-medium ' + (types[type] || types.info);
+            el.setAttribute('role', 'alert');
+            el.textContent = message;
+            container.appendChild(el);
+            function remove() {
+                el.classList.add('toast-leave');
+                setTimeout(function() {
+                    if (el.parentNode) el.parentNode.removeChild(el);
+                }, 200);
+            }
+            el.addEventListener('click', remove);
+            if (duration > 0) setTimeout(remove, duration);
+        }
+        window.toast = toast;
+
+        (function confirmModalGlobal() {
+            var overlay = document.getElementById('confirmModalOverlay');
+            var messageEl = document.getElementById('confirmModalMessage');
+            var okBtn = document.getElementById('confirmModalOk');
+            var cancelBtn = document.getElementById('confirmModalCancel');
+            var currentCallback = null;
+            function close() {
+                if (overlay) { overlay.classList.add('hidden'); overlay.style.display = 'none'; }
+                currentCallback = null;
+            }
+            function onConfirm(ok) {
+                if (typeof currentCallback === 'function') currentCallback(ok);
+                close();
+            }
+            if (okBtn) okBtn.addEventListener('click', function() { onConfirm(true); });
+            if (cancelBtn) cancelBtn.addEventListener('click', function() { onConfirm(false); });
+            if (overlay) overlay.addEventListener('click', function(e) { if (e.target === overlay) onConfirm(false); });
+            window.confirmModal = function(message, callback) {
+                currentCallback = callback;
+                if (messageEl) messageEl.textContent = message || '确定吗？';
+                if (overlay) { overlay.classList.remove('hidden'); overlay.style.display = 'flex'; }
+            };
+            document.addEventListener('click', function(e) {
+                var btn = e.target.closest('.js-confirm-submit');
+                if (!btn) return;
+                var form = btn.closest('form');
+                var msg = btn.getAttribute('data-confirm');
+                if (!form || !msg) return;
+                e.preventDefault();
+                e.stopPropagation();
+                window.confirmModal(msg, function(ok) { if (ok) form.submit(); });
+            });
+        })();
+        (function listActionDropdown() {
+            document.addEventListener('click', function(e) {
+                var btn = e.target.closest('.list-action-btn');
+                if (btn) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    var wrap = btn.closest('.list-action-wrap');
+                    var menu = wrap ? wrap.querySelector('.list-action-menu') : null;
+                    if (!menu) return;
+                    var isOpen = menu.style.display === 'block';
+                    document.querySelectorAll('.list-action-menu').forEach(function(m) { m.style.display = 'none'; });
+                    if (!isOpen) {
+                        var r = btn.getBoundingClientRect();
+                        menu.style.left = r.left + 'px';
+                        menu.style.top = (r.bottom + 4) + 'px';
+                        menu.style.display = 'block';
+                    }
+                    return;
+                }
+                if (!e.target.closest('.list-action-menu')) {
+                    document.querySelectorAll('.list-action-menu').forEach(function(m) { m.style.display = 'none'; });
+                }
+            });
+        })();
+    })();
+    </script>
+</body>
+</html>
+</#macro>

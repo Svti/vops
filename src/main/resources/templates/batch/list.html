@@ -1,0 +1,400 @@
+<#import "../layout.html" as layout>
+<@layout.main title="批量执行" nav="batch">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <div class="flex items-center gap-3 flex-1 min-w-0">
+            <h2 class="text-sm font-semibold text-slate-600 uppercase tracking-wider shrink-0">任务列表</h2>
+            <input type="search" id="batchSearchInput" placeholder="搜索任务名、命令、Cron…" class="flex-1 max-w-xs px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+        </div>
+        <div class="shrink-0">
+            <button type="button" class="js-open-schedule-modal px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg shadow shadow-blue-500/30 transition border-0 cursor-pointer" data-schedule-id="">新建任务</button>
+        </div>
+    </div>
+    <div class="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm mb-8">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm">
+                <thead>
+                    <tr class="border-b border-slate-200 bg-slate-50">
+                        <th class="px-6 py-4 text-xs font-semibold text-slate-600 uppercase tracking-wider">任务名</th>
+                        <th class="px-6 py-4 text-xs font-semibold text-slate-600 uppercase tracking-wider">命令</th>
+                        <th class="px-6 py-4 text-xs font-semibold text-slate-600 uppercase tracking-wider">定时 (Cron)</th>
+                        <th class="px-6 py-4 text-xs font-semibold text-slate-600 uppercase tracking-wider">状态</th>
+                        <th class="px-6 py-4 text-xs font-semibold text-slate-600 uppercase tracking-wider">最近执行</th>
+                        <th class="px-6 py-4 text-xs font-semibold text-slate-600 uppercase tracking-wider text-right">操作</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-200">
+                    <#list schedules! as s>
+                    <#assign lastRun = (lastRunMap!{})[s.id?string!]!>
+                    <tr class="batch-task-row hover:bg-slate-50 transition-colors" data-search="${(s.name!'')?html} ${(s.command!'')?html} ${(s.cronExpression!'')?html}">
+                        <td class="px-6 py-4 text-slate-800 font-medium">${(s.name!)?html}</td>
+                        <td class="px-6 py-4 max-w-[200px] truncate text-slate-600 font-mono text-xs">${(s.command!)?html}</td>
+                        <td class="px-6 py-4 text-slate-600 font-mono text-xs">
+                            <span class="js-cron-cell relative inline-flex items-center gap-1 cursor-help border-b border-dotted border-slate-400" data-schedule-id="${s.id!}" data-has-cron="${(s.cronExpression?? && s.cronExpression?has_content)?then('1','0')}" title="悬停显示未来三次执行时间">${(s.cronExpression!)?html}<#if s.cronExpression?? && s.cronExpression?has_content><svg class="w-3.5 h-3.5 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></#if></span>
+                        </td>
+                        <td class="px-6 py-4">
+                            <#if s.enabled?? && s.enabled == 1><span class="px-2 py-0.5 rounded text-xs bg-emerald-100 text-emerald-700">启用</span><#else><span class="px-2 py-0.5 rounded text-xs bg-slate-100 text-slate-500">禁用</span></#if>
+                        </td>
+                        <td class="px-6 py-4 text-slate-500 text-xs">
+                            <#if lastRun??>
+                            <span class="inline-flex items-center gap-2 flex-wrap">
+                                <span>${(lastRun.createTime?string("yyyy-MM-dd HH:mm"))!''}</span>
+                                <span class="inline-flex items-center gap-1 text-emerald-600" title="成功"><svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>${lastRun.successCount!0}</span>
+                                <span class="inline-flex items-center gap-1 text-rose-600" title="失败"><svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>${lastRun.failCount!0}</span>
+                            </span>
+                            <#else>—</#if>
+                        </td>
+                        <td class="px-6 py-4 text-right">
+                            <div class="batch-op-wrap inline-block relative">
+                                <button type="button" class="batch-op-trigger px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm rounded-lg transition inline-flex items-center gap-1 cursor-pointer border-0">
+                                    操作 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                                </button>
+                                <div class="batch-op-menu fixed py-1 min-w-[8rem] rounded-lg bg-white border border-slate-200 shadow-xl z-[200]" style="display: none;">
+                                    <form method="post" action="/batch/schedule/run-now" class="block">
+                                        <input type="hidden" name="id" value="${s.id!}">
+                                        <button type="button" class="js-confirm-submit flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 border-0 bg-transparent cursor-pointer rounded-t-lg" data-confirm="确定立即执行一次？"><svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>立即执行</button>
+                                    </form>
+                                    <button type="button" class="js-open-schedule-logs flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 border-0 bg-transparent cursor-pointer" data-schedule-id="${s.id!}" data-schedule-name="${(s.name!)?html}"><svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>查看日志</button>
+                                    <button type="button" class="js-open-schedule-runs flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 border-0 bg-transparent cursor-pointer" data-schedule-id="${s.id!}" data-schedule-name="${(s.name!)?html}"><svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>执行记录</button>
+                                    <form method="post" action="/batch/schedule/toggle" class="block">
+                                        <input type="hidden" name="id" value="${s.id!}">
+                                        <button type="submit" class="flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 border-0 bg-transparent cursor-pointer"><svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg><#if s.enabled?? && s.enabled == 1>禁用<#else>启用</#if></button>
+                                    </form>
+                                    <button type="button" class="js-open-schedule-modal flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 border-0 bg-transparent cursor-pointer" data-schedule-id="${s.id!}"><svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>编辑</button>
+                                    <form method="post" action="/batch/schedule/delete" class="block">
+                                        <input type="hidden" name="id" value="${s.id!}">
+                                        <button type="button" class="js-confirm-submit flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 border-0 bg-transparent cursor-pointer rounded-b-lg" data-confirm="确定删除该任务？"><svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>删除</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                    </#list>
+                    <#if !schedules?? || schedules?size == 0>
+                    <tr><td colspan="6" class="px-6 py-8 text-center text-slate-500 text-sm">暂无任务，点击「新建任务」添加</td></tr>
+                    <#else>
+                    <tr class="batch-no-match hidden" style="display: none;"><td colspan="6" class="px-6 py-8 text-center text-slate-500 text-sm">无匹配任务</td></tr>
+                    </#if>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="scheduleModalOverlay" class="fixed inset-0 bg-black/50 z-[300] hidden items-center justify-center" style="display: none;">
+        <div id="scheduleModal" class="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto mx-4">
+            <div id="scheduleModalBody" class="p-6"></div>
+        </div>
+    </div>
+    <div id="logsModalOverlay" class="fixed inset-0 bg-black/50 z-[400] hidden items-center justify-center overflow-y-auto py-4" style="display: none;">
+        <div id="logsModal" class="bg-white rounded-xl shadow-xl max-w-3xl w-full mx-4 my-auto">
+            <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+                <h3 id="logsModalTitle" class="text-lg font-semibold text-slate-800">运行日志</h3>
+                <button type="button" class="js-close-logs-modal px-3 py-1.5 text-slate-600 hover:text-slate-800 rounded-lg border-0 bg-transparent cursor-pointer">关闭</button>
+            </div>
+            <div id="logsModalBody" class="p-6 font-mono text-sm text-slate-700"></div>
+        </div>
+    </div>
+    <div id="runsModalOverlay" class="fixed inset-0 bg-black/50 z-[300] hidden items-center justify-center" style="display: none;">
+        <div id="runsModal" class="bg-white rounded-xl shadow-xl max-w-3xl w-full max-h-[85vh] overflow-hidden mx-4 flex flex-col">
+            <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between shrink-0">
+                <h3 id="runsModalTitle" class="text-lg font-semibold text-slate-800">执行记录</h3>
+                <button type="button" class="js-close-runs-modal px-3 py-1.5 text-slate-600 hover:text-slate-800 rounded-lg border-0 bg-transparent cursor-pointer">关闭</button>
+            </div>
+            <div id="runsModalBody" class="p-6 overflow-y-auto flex-1"></div>
+        </div>
+    </div>
+
+    <div id="cronNextTimesTooltip" class="fixed z-[200] py-2 px-3 rounded-lg bg-slate-800 text-white text-xs shadow-xl pointer-events-none" style="display: none;"></div>
+
+    <script>
+    (function() {
+        var scheduleOverlay = document.getElementById('scheduleModalOverlay');
+        var scheduleBody = document.getElementById('scheduleModalBody');
+        var logsOverlay = document.getElementById('logsModalOverlay');
+        var logsTitle = document.getElementById('logsModalTitle');
+        var logsBody = document.getElementById('logsModalBody');
+
+        function openScheduleModal(scheduleId) {
+            var qs = scheduleId ? '?id=' + encodeURIComponent(scheduleId) : '';
+            scheduleOverlay.classList.remove('hidden');
+            scheduleOverlay.style.display = 'flex';
+            scheduleBody.innerHTML = '<div class="text-center py-8 text-slate-500">加载中…</div>';
+            fetch('/batch/schedule/form' + qs, { credentials: 'same-origin' })
+                .then(function(r) { return r.text(); })
+                .then(function(html) {
+                    scheduleBody.innerHTML = html;
+                    // 通过 innerHTML 插入的 script 不会执行，需手动执行以使标签切换与提交逻辑生效
+                    scheduleBody.querySelectorAll('script').forEach(function(oldScript) {
+                        var newScript = document.createElement('script');
+                        newScript.textContent = oldScript.textContent;
+                        document.body.appendChild(newScript);
+                        document.body.removeChild(newScript);
+                    });
+                    var closeBtn = scheduleBody.querySelector('.js-modal-close');
+                    if (closeBtn) closeBtn.addEventListener('click', closeScheduleModal);
+                    scheduleOverlay.onclick = function(e) { if (e.target === scheduleOverlay) closeScheduleModal(); };
+                })
+                .catch(function() {
+                    scheduleBody.innerHTML = '<div class="text-center py-8 text-red-600">加载失败</div>';
+                });
+        }
+        function closeScheduleModal() {
+            scheduleOverlay.classList.add('hidden');
+            scheduleOverlay.style.display = 'none';
+        }
+
+        function openLogsModal(taskId, taskName) {
+            logsTitle.textContent = '运行日志' + (taskName ? '：' + taskName : '');
+            logsBody.innerHTML = '<div class="text-center py-8 text-slate-500">加载中…</div>';
+            logsOverlay.classList.remove('hidden');
+            logsOverlay.style.display = 'flex';
+            fetch('/batch/task/' + encodeURIComponent(taskId) + '/logs', { credentials: 'same-origin' })
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if (!data || !data.logs) {
+                        logsBody.innerHTML = '<p class="text-slate-500">暂无日志</p>';
+                        return;
+                    }
+                    var html = '';
+                    data.logs.forEach(function(log) {
+                        html += '<div class="border-b border-slate-200 pb-4 mb-4 last:border-0 last:mb-0">';
+                        html += '<p class="font-semibold text-slate-800 mb-1">' + (log.hostName || ('主机 ' + log.hostId)) + ' <span class="text-slate-500 font-normal">退出码: ' + (log.exitCode != null ? log.exitCode : '-') + '</span></p>';
+                        if (log.output) html += '<pre class="whitespace-pre-wrap text-slate-600 bg-slate-50 p-3 rounded-lg overflow-x-auto text-xs">' + escapeHtml(log.output) + '</pre>';
+                        if (log.error) html += '<p class="text-red-600 mt-1">' + escapeHtml(log.error) + '</p>';
+                        html += '</div>';
+                    });
+                    logsBody.innerHTML = html || '<p class="text-slate-500">暂无日志</p>';
+                })
+                .catch(function() {
+                    logsBody.innerHTML = '<p class="text-red-600">加载失败</p>';
+                });
+        }
+        function closeLogsModal() {
+            logsOverlay.classList.add('hidden');
+            logsOverlay.style.display = 'none';
+        }
+        function escapeHtml(s) {
+            if (!s) return '';
+            var div = document.createElement('div');
+            div.textContent = s;
+            return div.innerHTML;
+        }
+
+        function openRunsModal(scheduleId, scheduleName) {
+            var runsOverlay = document.getElementById('runsModalOverlay');
+            var runsTitle = document.getElementById('runsModalTitle');
+            var runsBody = document.getElementById('runsModalBody');
+            runsTitle.textContent = '执行记录' + (scheduleName ? '：' + scheduleName : '');
+            runsBody.innerHTML = '<div class="text-center py-8 text-slate-500">加载中…</div>';
+            runsOverlay.classList.remove('hidden');
+            runsOverlay.style.display = 'flex';
+            fetch('/batch/schedule/' + encodeURIComponent(scheduleId) + '/runs?fragment=true&page=1&size=10', { credentials: 'same-origin' })
+                .then(function(r) { return r.text(); })
+                .then(function(html) {
+                    runsBody.innerHTML = html;
+                })
+                .catch(function() {
+                    runsBody.innerHTML = '<p class="text-center text-red-600 py-8">加载失败</p>';
+                });
+        }
+        function loadRunsPage(scheduleId, page) {
+            var runsBody = document.getElementById('runsModalBody');
+            if (!runsBody) return;
+            runsBody.innerHTML = '<div class="text-center py-8 text-slate-500">加载中…</div>';
+            var size = 10;
+            fetch('/batch/schedule/' + encodeURIComponent(scheduleId) + '/runs?fragment=true&page=' + encodeURIComponent(page) + '&size=' + size, { credentials: 'same-origin' })
+                .then(function(r) { return r.text(); })
+                .then(function(html) {
+                    runsBody.innerHTML = html;
+                })
+                .catch(function() {
+                    runsBody.innerHTML = '<p class="text-center text-red-600 py-8">加载失败</p>';
+                });
+        }
+        function closeRunsModal() {
+            var runsOverlay = document.getElementById('runsModalOverlay');
+            runsOverlay.classList.add('hidden');
+            runsOverlay.style.display = 'none';
+        }
+
+        function openScheduleLogsModal(scheduleId, scheduleName) {
+            logsTitle.textContent = '运行日志' + (scheduleName ? '：' + scheduleName : '');
+            logsBody.innerHTML = '<div class="text-center py-8 text-slate-500">加载中…</div>';
+            logsOverlay.classList.remove('hidden');
+            logsOverlay.style.display = 'flex';
+            fetch('/batch/schedule/' + encodeURIComponent(scheduleId) + '/last-run', { credentials: 'same-origin' })
+                .then(function(r) {
+                    if (!r.ok) {
+                        logsBody.innerHTML = '<p class="text-slate-500 text-center py-8">该任务暂无执行记录</p>';
+                        return null;
+                    }
+                    return r.json();
+                })
+                .then(function(data) {
+                    if (!data || !data.taskId) return;
+                    openLogsModal(data.taskId, scheduleName);
+                });
+        }
+
+        (function initCronNextTimesTooltip() {
+            var tooltip = document.getElementById('cronNextTimesTooltip');
+            var hideTimer = null;
+            var showTimer = null;
+            function hide() {
+                if (hideTimer) clearTimeout(hideTimer);
+                hideTimer = null;
+                if (showTimer) clearTimeout(showTimer);
+                showTimer = null;
+                tooltip.style.display = 'none';
+            }
+            function formatTime(ms) {
+                if (ms == null) return '';
+                var d = new Date(ms);
+                var y = d.getFullYear(), m = String(d.getMonth() + 1).padStart(2, '0'), day = String(d.getDate()).padStart(2, '0');
+                var h = String(d.getHours()).padStart(2, '0'), min = String(d.getMinutes()).padStart(2, '0');
+                return y + '-' + m + '-' + day + ' ' + h + ':' + min;
+            }
+            document.querySelectorAll('.js-cron-cell').forEach(function(el) {
+                if (el.getAttribute('data-has-cron') !== '1') return;
+                el.addEventListener('mouseenter', function() {
+                    if (hideTimer) clearTimeout(hideTimer);
+                    hideTimer = null;
+                    var scheduleId = el.getAttribute('data-schedule-id');
+                    var cell = el;
+                    showTimer = setTimeout(function() {
+                        showTimer = null;
+                        fetch('/batch/schedule/' + encodeURIComponent(scheduleId) + '/next-schedule-times?count=3', { credentials: 'same-origin' })
+                            .then(function(r) { return r.json(); })
+                            .then(function(times) {
+                                var rect = cell.getBoundingClientRect();
+                                if (times.length === 0) {
+                                    tooltip.textContent = '仅手动执行（未填写 Cron）';
+                                } else {
+                                    tooltip.innerHTML = '未来三次执行：<br>' + times.map(formatTime).join('<br>');
+                                }
+                                tooltip.style.display = 'block';
+                                tooltip.style.left = rect.left + 'px';
+                                tooltip.style.top = (rect.bottom + 4) + 'px';
+                            })
+                            .catch(function() {
+                                tooltip.textContent = '加载失败';
+                                var rect = cell.getBoundingClientRect();
+                                tooltip.style.display = 'block';
+                                tooltip.style.left = rect.left + 'px';
+                                tooltip.style.top = (rect.bottom + 4) + 'px';
+                            });
+                    }, 300);
+                });
+                el.addEventListener('mouseleave', function() {
+                    if (showTimer) { clearTimeout(showTimer); showTimer = null; }
+                    hideTimer = setTimeout(hide, 150);
+                });
+            });
+            tooltip.addEventListener('mouseenter', function() { if (hideTimer) clearTimeout(hideTimer); hideTimer = null; });
+            tooltip.addEventListener('mouseleave', function() { hideTimer = setTimeout(hide, 100); });
+        })();
+
+        (function initSearch() {
+            var searchInput = document.getElementById('batchSearchInput');
+            var taskRows = document.querySelectorAll('.batch-task-row');
+            var noMatchRow = document.querySelector('.batch-no-match');
+            if (!searchInput || taskRows.length === 0) return;
+            function filterRows() {
+                var q = (searchInput.value || '').trim().toLowerCase();
+                var visible = 0;
+                taskRows.forEach(function(tr) {
+                    var text = (tr.getAttribute('data-search') || '').toLowerCase();
+                    var show = !q || text.indexOf(q) >= 0;
+                    tr.style.display = show ? '' : 'none';
+                    if (show) visible++;
+                });
+                if (noMatchRow) noMatchRow.style.display = (q && visible === 0) ? '' : 'none';
+            }
+            searchInput.addEventListener('input', filterRows);
+            searchInput.addEventListener('keydown', function(e) { if (e.key === 'Escape') { searchInput.value = ''; filterRows(); searchInput.blur(); } });
+        })();
+
+        function closeAllOpMenus() {
+            document.querySelectorAll('.batch-op-menu').forEach(function(el) { el.style.display = 'none'; });
+        }
+        document.addEventListener('click', function(e) {
+            var trigger = e.target.closest('.batch-op-trigger');
+            if (trigger) {
+                e.preventDefault();
+                e.stopPropagation();
+                var wrap = trigger.closest('.batch-op-wrap');
+                var menu = wrap && wrap.querySelector('.batch-op-menu');
+                var isOpen = menu && menu.style.display === 'block';
+                closeAllOpMenus();
+                if (menu && !isOpen) {
+                    var r = trigger.getBoundingClientRect();
+                    menu.style.left = r.left + 'px';
+                    menu.style.top = (r.bottom + 4) + 'px';
+                    menu.style.display = 'block';
+                }
+                return;
+            }
+            if (!e.target.closest('.batch-op-menu')) closeAllOpMenus();
+        });
+        document.addEventListener('click', function(e) {
+            var btn = e.target.closest('.js-open-schedule-modal');
+            if (btn) {
+                e.preventDefault();
+                e.stopPropagation();
+                closeAllOpMenus();
+                openScheduleModal(btn.getAttribute('data-schedule-id') || null);
+                return;
+            }
+            var scheduleLogBtn = e.target.closest('.js-open-schedule-logs');
+            if (scheduleLogBtn) {
+                e.preventDefault();
+                e.stopPropagation();
+                closeAllOpMenus();
+                var sid = scheduleLogBtn.getAttribute('data-schedule-id');
+                var sname = scheduleLogBtn.getAttribute('data-schedule-name');
+                if (sid) openScheduleLogsModal(sid, sname);
+                return;
+            }
+            var runsBtn = e.target.closest('.js-open-schedule-runs');
+            if (runsBtn) {
+                e.preventDefault();
+                e.stopPropagation();
+                closeAllOpMenus();
+                var rid = runsBtn.getAttribute('data-schedule-id');
+                var rname = runsBtn.getAttribute('data-schedule-name');
+                if (rid) openRunsModal(rid, rname);
+                return;
+            }
+            var runsPageBtn = e.target.closest('.js-runs-page');
+            if (runsPageBtn) {
+                e.preventDefault();
+                e.stopPropagation();
+                var runsFragment = document.querySelector('#runsModalBody .schedule-runs-fragment');
+                var scheduleId = runsFragment && runsFragment.getAttribute('data-schedule-id');
+                var page = runsPageBtn.getAttribute('data-page');
+                if (scheduleId && page) loadRunsPage(scheduleId, parseInt(page, 10));
+                return;
+            }
+            var logBtn = e.target.closest('.js-open-logs-modal');
+            if (logBtn) {
+                e.preventDefault();
+                e.stopPropagation();
+                closeAllOpMenus();
+                var id = logBtn.getAttribute('data-task-id');
+                var name = logBtn.getAttribute('data-task-name');
+                if (id) openLogsModal(id, name);
+                return;
+            }
+            if (e.target.closest('.js-close-logs-modal') || e.target === logsOverlay) {
+                closeLogsModal();
+            }
+            if (e.target.closest('.js-close-runs-modal')) {
+                closeRunsModal();
+            }
+            var runsOverlay = document.getElementById('runsModalOverlay');
+            if (runsOverlay && e.target === runsOverlay) {
+                closeRunsModal();
+            }
+        });
+    })();
+    </script>
+</@layout.main>

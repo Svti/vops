@@ -1,0 +1,116 @@
+<#-- 主机表单：fragment=true 时仅输出表单（弹窗用），否则带布局的完整页 -->
+<#macro hostForm>
+<div class="host-form-fragment">
+    <h2 class="text-lg font-semibold text-slate-800 mb-4"><#if host.id??>编辑主机<#else>新增主机</#if></h2>
+    <form method="post" action="/host/save" id="hostFormModal" class="space-y-4">
+        <#if host.id??><input type="hidden" name="id" value="${host.id}"></#if>
+        <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">名称</label>
+            <input type="text" name="name" value="${host.name!''}" required class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">主机名 / IP</label>
+            <input type="text" name="hostname" value="${host.hostname!''}" required class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">端口</label>
+            <input type="number" name="port" value="${host.port!22}" class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">用户名</label>
+            <input type="text" name="username" value="${host.username!''}" required class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">认证方式</label>
+            <select name="authType" id="authTypeModal" class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                <option value="password" <#if (host.authType!'password') == 'password'>selected</#if>>密码</option>
+                <option value="privateKey" <#if host.authType?? && host.authType == 'privateKey'>selected</#if>>私钥</option>
+            </select>
+        </div>
+        <div id="wrapPasswordModal" class="auth-cred">
+            <label class="block text-sm font-medium text-slate-700 mb-1">密码 <span class="text-slate-500 font-normal">(编辑时留空表示不修改)</span></label>
+            <input type="password" name="password" id="credentialPasswordModal" placeholder="SSH 登录密码" class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+        </div>
+        <div id="wrapPrivateKeyModal" class="auth-cred hidden">
+            <label class="block text-sm font-medium text-slate-700 mb-1">选择系统密钥（私钥库）</label>
+            <select name="sshKeyId" id="sshKeyIdModal" class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                <option value="">自定义（手动粘贴）</option>
+                <#list sshKeys! as k>
+                <option value="${k.id!}" <#if host.sshKeyId?? && host.sshKeyId == k.id>selected</#if>>${k.name!''}</option>
+                </#list>
+            </select>
+            <div id="wrapCustomKeyModal" class="mt-2">
+                <label class="block text-sm font-medium text-slate-700 mb-1">私钥内容 <span class="text-slate-500 font-normal">(选择「自定义」时粘贴)</span></label>
+                <textarea name="credential" id="credentialKeyModal" rows="4" placeholder="粘贴 PEM 格式私钥" class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-blue-500 font-mono text-sm"></textarea>
+            </div>
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">分组</label>
+            <select name="groupId" class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                <option value="">--</option>
+                <#list groups as g>
+                <option value="${g.id!}" <#if host.groupId?? && host.groupId == g.id>selected</#if>>${g.name!''}</option>
+                </#list>
+            </select>
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">备注</label>
+            <textarea name="description" rows="2" class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-800 focus:ring-2 focus:ring-blue-500">${host.description!''}</textarea>
+        </div>
+        <div class="flex gap-3 pt-2">
+            <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition">保存</button>
+            <a href="/host" class="js-modal-close px-4 py-2 text-slate-600 hover:text-slate-800 transition">取消</a>
+        </div>
+    </form>
+</div>
+</#macro>
+<#if fragment!false>
+<@hostForm/>
+<#else>
+<#import "../layout.html" as layout>
+<@layout.main title=(host.id??)?then("编辑主机","新增主机") nav="host">
+    <div class="max-w-xl mx-auto">
+        <div class="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
+            <@hostForm/>
+        </div>
+    </div>
+    <script>
+    (function() {
+        var authType = document.getElementById('authTypeModal');
+        var wrapPassword = document.getElementById('wrapPasswordModal');
+        var wrapPrivateKey = document.getElementById('wrapPrivateKeyModal');
+        var sshKeyId = document.getElementById('sshKeyIdModal');
+        var wrapCustomKey = document.getElementById('wrapCustomKeyModal');
+        var credentialPassword = document.getElementById('credentialPasswordModal');
+        var credentialKey = document.getElementById('credentialKeyModal');
+        if (!authType) return;
+        function toggleCredential() {
+            var isPrivate = authType.value === 'privateKey';
+            wrapPassword.classList.toggle('hidden', isPrivate);
+            wrapPrivateKey.classList.toggle('hidden', !isPrivate);
+            if (isPrivate) {
+                credentialPassword.disabled = true;
+                credentialPassword.removeAttribute('name');
+                credentialKey.disabled = sshKeyId.value !== '';
+                if (sshKeyId.value !== '') credentialKey.removeAttribute('name'); else credentialKey.setAttribute('name', 'credential');
+            } else {
+                credentialPassword.disabled = false;
+                credentialPassword.setAttribute('name', 'password');
+                credentialKey.disabled = true;
+                credentialKey.removeAttribute('name');
+            }
+        }
+        function toggleCustomKey() {
+            var isCustom = sshKeyId.value === '';
+            wrapCustomKey.classList.toggle('hidden', !isCustom);
+            credentialKey.disabled = !isCustom;
+            if (isCustom) credentialKey.setAttribute('name', 'credential'); else credentialKey.removeAttribute('name');
+        }
+        authType.addEventListener('change', toggleCredential);
+        sshKeyId.addEventListener('change', toggleCustomKey);
+        toggleCredential();
+        toggleCustomKey();
+    })();
+    </script>
+</@layout.main>
+</#if>

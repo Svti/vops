@@ -1,0 +1,218 @@
+<#import "../layout.html" as layout>
+<@layout.main title="通知渠道" nav="notifier">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <form method="get" action="/notifier" class="flex gap-2 flex-1 sm:max-w-xs">
+            <input type="search" name="q" value="${(q!)?html}" placeholder="搜索渠道名称" class="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition border-0 cursor-pointer">搜索</button>
+        </form>
+        <div class="flex gap-2 shrink-0">
+            <button type="button" class="js-open-notifier-modal px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg shadow shadow-blue-500/30 transition border-0 cursor-pointer" data-notifier-id="">新增渠道</button>
+        </div>
+    </div>
+    <input type="hidden" id="notifierListQ" value="${(q!)?html}">
+    <#if message??>
+    <p class="mb-4 text-sm text-emerald-600">${message}</p>
+    </#if>
+    <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+        <table class="w-full text-left text-sm">
+            <thead>
+                <tr class="border-b border-slate-200 bg-slate-50">
+                    <th class="px-4 py-3 text-xs font-semibold text-slate-600 uppercase">名称</th>
+                    <th class="px-4 py-3 text-xs font-semibold text-slate-600 uppercase">渠道类型</th>
+                    <th class="px-4 py-3 text-xs font-semibold text-slate-600 uppercase">状态</th>
+                    <th class="px-4 py-3 text-xs font-semibold text-slate-600 uppercase text-right">操作</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200">
+                <#list notifiers as n>
+                <#assign channelLabel = {'dingtalk':'钉钉','feishu':'飞书','wecom':'企业微信','email':'邮件'}[n.channel!'']!n.channel!>
+                <tr class="hover:bg-slate-50">
+                    <td class="px-4 py-3 font-medium text-slate-800">${(n.name!)?html}</td>
+                    <td class="px-4 py-3 text-slate-600">${channelLabel}</td>
+                    <td class="px-4 py-3">
+                        <#if n.enabled?? && n.enabled == 1>
+                        <span class="px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-700">启用</span>
+                        <#else>
+                        <span class="px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-500">禁用</span>
+                        </#if>
+                    </td>
+                    <td class="px-4 py-3 text-right whitespace-nowrap">
+                        <div class="list-action-wrap inline-block relative">
+                            <button type="button" class="list-action-btn px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm rounded-lg transition inline-flex items-center gap-1 cursor-pointer border-0">操作 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg></button>
+                            <div class="list-action-menu fixed py-1 min-w-[8rem] rounded-lg bg-white border border-slate-200 shadow-xl z-[200]" style="display: none; position: fixed;">
+                                <button type="button" class="js-open-notifier-modal flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 rounded-t-lg border-0 bg-transparent cursor-pointer" data-notifier-id="${n.id!}"><svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>编辑</button>
+                                <button type="button" class="js-test-notifier flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 border-0 bg-transparent cursor-pointer" data-notifier-id="${n.id!}"><svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>测试</button>
+                                <form method="post" action="/notifier/delete" class="block w-full">
+                                    <input type="hidden" name="id" value="${n.id!}">
+                                    <button type="button" class="js-confirm-submit flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-b-lg border-0 bg-transparent cursor-pointer" data-confirm="确定删除该渠道？"><svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>删除</button>
+                                </form>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+                </#list>
+            </tbody>
+        </table>
+        <#if !notifiers?? || notifiers?size == 0>
+        <p class="px-4 py-8 text-center text-slate-500 text-sm">暂无通知渠道，<button type="button" class="js-open-notifier-modal text-blue-600 hover:underline border-0 bg-transparent cursor-pointer p-0" data-notifier-id="">新增一个</button></p>
+        </#if>
+    </div>
+
+    <div id="notifierModalOverlay" class="fixed inset-0 bg-black/50 z-[300] hidden items-center justify-center" style="display: none;">
+        <div id="notifierModal" class="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto mx-4">
+            <div id="notifierModalBody" class="p-6"></div>
+        </div>
+    </div>
+    <script>
+    (function() {
+        var overlay = document.getElementById('notifierModalOverlay');
+        var modalBody = document.getElementById('notifierModalBody');
+        var currentQ = (document.getElementById('notifierListQ') && document.getElementById('notifierListQ').value) || '';
+
+        function initNotifierFormInModal(container) {
+            var channel = container.querySelector('#channelModal');
+            var webhookWrap = container.querySelector('#webhookWrapModal');
+            var secretWrap = container.querySelector('#secretWrapModal');
+            var toWrap = container.querySelector('#toWrapModal');
+            if (!channel) return;
+            function toggle() {
+                var v = (channel.value || '').toLowerCase();
+                webhookWrap.classList.toggle('hidden', v === 'email');
+                if (secretWrap) secretWrap.classList.toggle('hidden', v !== 'dingtalk');
+                toWrap.classList.toggle('hidden', v !== 'email');
+            }
+            channel.addEventListener('change', toggle);
+            toggle();
+        }
+
+        function openNotifierModal(notifierId) {
+            var qs = notifierId ? '?id=' + encodeURIComponent(notifierId) : '';
+            overlay.classList.remove('hidden');
+            overlay.style.display = 'flex';
+            modalBody.innerHTML = '<div class="text-center py-8 text-slate-500">加载中…</div>';
+            fetch('/notifier/form' + qs, { credentials: 'same-origin' })
+                .then(function(r) { return r.text(); })
+                .then(function(html) {
+                    modalBody.innerHTML = html;
+                    initNotifierFormInModal(modalBody);
+                    var form = document.getElementById('notifierFormModal');
+                    var closeBtn = modalBody.querySelector('.js-modal-close');
+                    if (closeBtn) closeBtn.addEventListener('click', closeNotifierModal);
+                    overlay.onclick = function(e) { if (e.target === overlay) closeNotifierModal(); };
+                    var testSendBtn = modalBody.querySelector('.js-test-notifier-send');
+                    if (testSendBtn) {
+                        testSendBtn.addEventListener('click', function() {
+                            if (!form) return;
+                            var params = new URLSearchParams();
+                            var idInput = form.querySelector('input[name="id"]');
+                            if (idInput && idInput.value) params.append('id', idInput.value);
+                            params.append('channel', (form.querySelector('select[name="channel"]') || {}).value || '');
+                            params.append('webhook', (form.querySelector('input[name="webhook"]') || {}).value || '');
+                            params.append('secret', (form.querySelector('input[name="secret"]') || {}).value || '');
+                            params.append('to', (form.querySelector('input[name="to"]') || {}).value || '');
+                            if (testSendBtn.disabled) return;
+                            testSendBtn.disabled = true;
+                            testSendBtn.textContent = '发送中…';
+                            doTestSend(params).then(function(data) {
+                                testSendBtn.disabled = false;
+                                testSendBtn.textContent = '测试发送';
+                                if (data && data.success) {
+                                    toast('测试消息已发送', 'success');
+                                } else {
+                                    toast(data.message || '发送失败', 'error');
+                                }
+                            }).catch(function() {
+                                testSendBtn.disabled = false;
+                                testSendBtn.textContent = '测试发送';
+                                toast('发送失败', 'error');
+                            });
+                        });
+                    }
+                    if (form) {
+                        form.addEventListener('submit', function(e) {
+                            e.preventDefault();
+                            var submitBtn = form.querySelector('button[type="submit"]');
+                            if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = '保存中…'; }
+                            var params = new URLSearchParams();
+                            var i, el;
+                            for (i = 0; i < form.elements.length; i++) {
+                                el = form.elements[i];
+                                if (el.name && !el.disabled) {
+                                    if (el.type === 'checkbox') { if (el.checked) params.append(el.name, el.value); }
+                                    else params.append(el.name, el.value);
+                                }
+                            }
+                            fetch('/notifier/save', {
+                                method: 'POST',
+                                credentials: 'same-origin',
+                                headers: { 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/x-www-form-urlencoded' },
+                                body: params.toString()
+                            }).then(function(res) { return res.json().catch(function() { return {}; }); }).then(function(data) {
+                                if (data && data.success) {
+                                    closeNotifierModal();
+                                    if (typeof toast === 'function') toast('保存成功', 'success');
+                                    window.location.href = '/notifier' + (currentQ ? '?q=' + encodeURIComponent(currentQ) : '');
+                                } else {
+                                    if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = '保存'; }
+                                    if (typeof toast === 'function') toast(data.message || '保存失败', 'error');
+                                }
+                            }).catch(function() {
+                                if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = '保存'; }
+                                if (typeof toast === 'function') toast('保存失败', 'error');
+                            });
+                        });
+                    }
+                })
+                .catch(function() {
+                    modalBody.innerHTML = '<div class="text-center py-8 text-red-600">加载失败</div>';
+                    if (typeof toast === 'function') toast('加载失败', 'error');
+                });
+        }
+        function closeNotifierModal() {
+            overlay.classList.add('hidden');
+            overlay.style.display = 'none';
+        }
+        function doTestSend(params) {
+            return fetch('/notifier/test-send', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: params.toString()
+            }).then(function(res) { return res.json().catch(function() { return {}; }); });
+        }
+
+        document.addEventListener('click', function(e) {
+            var btn = e.target.closest('.js-open-notifier-modal');
+            if (btn) {
+                e.preventDefault();
+                e.stopPropagation();
+                var id = btn.getAttribute('data-notifier-id');
+                openNotifierModal(id || null);
+                return;
+            }
+            var testBtn = e.target.closest('.js-test-notifier');
+            if (testBtn) {
+                e.preventDefault();
+                e.stopPropagation();
+                var id = testBtn.getAttribute('data-notifier-id');
+                if (!id) return;
+                if (testBtn.disabled) return;
+                testBtn.disabled = true;
+                var params = new URLSearchParams();
+                params.append('id', id);
+                doTestSend(params).then(function(data) {
+                    testBtn.disabled = false;
+                    if (data && data.success) {
+                        toast('测试消息已发送', 'success');
+                    } else {
+                        toast(data.message || '发送失败', 'error');
+                    }
+                }).catch(function() {
+                    testBtn.disabled = false;
+                    toast('发送失败', 'error');
+                });
+            }
+        });
+    })();
+    </script>
+</@layout.main>
